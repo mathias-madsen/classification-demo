@@ -1,3 +1,4 @@
+import os
 import numpy as np
 import torch
 import torchvision
@@ -38,7 +39,8 @@ def _forward_impl(x):
 model._forward_impl = _forward_impl
 
 
-names_file = "/Users/mathias/Downloads/imagenet_classes.txt"
+folder = os.path.dirname(os.path.abspath(__file__))
+names_file = os.path.join(folder, "imagenet_classes.txt")
 with open(names_file, "r") as f:
     IMAGENET_CLASS_NAMES = [s.strip() for s in f.readlines()]
 
