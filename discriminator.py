@@ -3,6 +3,28 @@ import numpy as np
 from scipy.stats import multivariate_normal
 
 
+def biased_moments(vectors):
+    """ Conservative estimates of mean vector and covariance matrix. """
+
+    assert not np.any(np.isnan(vectors))
+    assert not np.any(np.isinf(vectors))
+
+    length, dim = vectors.shape
+    data_weight = length / (length + dim)
+
+    empirical_mean = np.mean(vectors, axis=0)
+    biased_mean = data_weight*empirical_mean  # leans towards zero
+
+    devs = vectors - biased_mean
+    empirical_cov = devs.T @ devs / len(devs)
+    biased_cov = (1 - data_weight)*np.eye(dim) + data_weight*empirical_cov
+
+    assert not np.any(np.isnan(biased_mean))
+    assert not np.any(np.isnan(biased_cov))
+
+    return biased_mean, biased_cov
+
+
 class BiGaussianDiscriminator:
 
     def __init__(self):
@@ -11,41 +33,9 @@ class BiGaussianDiscriminator:
     
     def fit(self, positive_examples, negative_examples):
         
-        assert not np.any(np.isnan(positive_examples))
-        assert not np.any(np.isinf(positive_examples))
-        assert not np.any(np.isnan(negative_examples))
-        assert not np.any(np.isinf(negative_examples))
-
         print("Fitting . . .")
-
-        plength, dim = positive_examples.shape
-        pos_data_weight = plength / (plength + dim)
-        # assert plength > dim
-        pmean = pos_data_weight * np.mean(positive_examples, axis=0)
-        pdevs = positive_examples - pmean
-        pcov_empirical = pdevs.T @ pdevs / len(pdevs)
-        pcov = (1 - pos_data_weight)*np.eye(dim) + pos_data_weight*pcov_empirical
-        # pmean = np.mean(positive_examples, axis=0)
-        # pcov = np.cov(positive_examples.T, ddof=1)
-
-        assert not np.any(np.isnan(pmean))
-        assert not np.any(np.isnan(pcov))
-        self.dist_pos = multivariate_normal(pmean, pcov)
-
-        nlength, dim = negative_examples.shape
-        neg_data_weight = nlength / (nlength + dim)
-        # assert nlength > dim
-        nmean = neg_data_weight * np.mean(negative_examples, axis=0)
-        ndevs = negative_examples - nmean
-        ncov_empirical = ndevs.T @ ndevs / len(ndevs)
-        ncov = (1 - neg_data_weight)*np.eye(dim) + neg_data_weight*ncov_empirical
-        # nmean = np.mean(negative_examples, axis=0)
-        # ncov = np.cov(negative_examples.T, ddof=1)
-
-        assert not np.any(np.isnan(nmean))
-        assert not np.any(np.isnan(ncov))
-        self.dist_neg = multivariate_normal(nmean, ncov)
-
+        self.dist_pos = multivariate_normal(*biased_moments(positive_examples))
+        self.dist_neg = multivariate_normal(*biased_moments(negative_examples))
         print("Done fitting.")
 
     def __call__(self, x):
