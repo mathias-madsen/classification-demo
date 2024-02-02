@@ -126,23 +126,36 @@ class DataCollector:
 
         self.current_image_list = []
         self.current_encoding_list = []
+        self.current_results_list = []
         while self.recording_in_progress:
             frame = self.read_rgb()
             window.set_data(frame)
             self.current_image_list.append(frame)
             assert self.current_encoding_list is not None
+            
             latent_vector = self.image_encoder(frame)
             self.current_encoding_list.append(latent_vector)
             evidence = self.discriminator(latent_vector)
             assert np.shape(evidence) == (), np.shape(evidence)
-            if evidence >= 0.0:
+            
+            # we categorize decisions as confidently correct,
+            # confidently incorrect, or not confident:
+            if self.currently_selected_class == "A":
+                self.current_results_list.append(evidence > 1e-5)
+            elif self.currently_selected_class == "B":
+                self.current_results_list.append(evidence < -1e-5)
+            
+            if evidence > 0.0:
                 barplot.set_color("orange")
             else:
                 barplot.set_color("magenta")
             barplot.set_data([0.0, evidence], [0, 0])
             nsteps = len(self.current_encoding_list)
             name = self.currently_selected_class
-            self.set_title("Recorded %s frames for class %r" % (nsteps, name),
+            num_correct = sum(self.current_results_list)
+            num_total = len(self.current_results_list)
+            self.set_title("%s/%s correct labels as class %r" %
+                           (num_correct, num_total, name),
                            color="orange" if name == "A" else "magenta")
             plt.pause(1 / self.display_fps)
             if not plt.fignum_exists(self.figure.number):
@@ -237,7 +250,8 @@ class DataCollector:
         print("CLASS SIZES:", sizes)
         minlength = downsampled_episode.shape[1] + 1
         assert minlength >= 1
-        if all(n >= minlength for n in sizes.values()):
+        if all(n >= 1 for n in sizes.values()):
+        # if True:
             pos = np.concatenate(self.class_latent_episodes["A"], axis=0)
             neg = np.concatenate(self.class_latent_episodes["B"], axis=0)
             self.discriminator.fit(pos, neg)
@@ -265,7 +279,7 @@ class DataCollector:
         hist_axes.hist(neg_scores, bins=30, color="magenta", alpha=0.5,
                        density=True, label="CLASS B (N=%s)" % counts["B"])
         hist_axes.legend()
-        hist_axes.set_title("Evidence for class A according to the model")
+        hist_axes.set_title("Evidence for class A according to the model AFTER FIT")
         self.figure.tight_layout()
         plt.pause(0.001)
 

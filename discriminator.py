@@ -17,20 +17,31 @@ class BiGaussianDiscriminator:
         assert not np.any(np.isinf(negative_examples))
 
         print("Fitting . . .")
+
         plength, dim = positive_examples.shape
-        assert plength > dim
+        pos_data_weight = plength / (plength + dim)
+        # assert plength > dim
+        pmean = pos_data_weight * np.mean(positive_examples, axis=0)
+        pdevs = positive_examples - pmean
+        pcov_empirical = pdevs.T @ pdevs / len(pdevs)
+        pcov = (1 - pos_data_weight)*np.eye(dim) + pos_data_weight*pcov_empirical
+        # pmean = np.mean(positive_examples, axis=0)
+        # pcov = np.cov(positive_examples.T, ddof=1)
 
-        nlength, dim = negative_examples.shape
-        assert nlength > dim
-
-        pmean = np.mean(positive_examples, axis=0)
-        pcov = np.cov(positive_examples.T, ddof=1)
         assert not np.any(np.isnan(pmean))
         assert not np.any(np.isnan(pcov))
         self.dist_pos = multivariate_normal(pmean, pcov)
 
-        nmean = np.mean(negative_examples, axis=0)
-        ncov = np.cov(negative_examples.T, ddof=1)
+        nlength, dim = negative_examples.shape
+        neg_data_weight = nlength / (nlength + dim)
+        # assert nlength > dim
+        nmean = neg_data_weight * np.mean(negative_examples, axis=0)
+        ndevs = negative_examples - nmean
+        ncov_empirical = ndevs.T @ ndevs / len(ndevs)
+        ncov = (1 - neg_data_weight)*np.eye(dim) + neg_data_weight*ncov_empirical
+        # nmean = np.mean(negative_examples, axis=0)
+        # ncov = np.cov(negative_examples.T, ddof=1)
+
         assert not np.any(np.isnan(nmean))
         assert not np.any(np.isnan(ncov))
         self.dist_neg = multivariate_normal(nmean, ncov)
