@@ -1,9 +1,7 @@
 import os
-import numpy as np
 import torch
 import torchvision
 from PIL import Image
-
 
 
 preprocess = torchvision.transforms.Compose([
@@ -20,6 +18,7 @@ preprocess = torchvision.transforms.Compose([
 weights = torchvision.models.resnet.ResNet50_Weights.DEFAULT
 model = torchvision.models.resnet50(weights=weights)
 model.eval()
+
 
 def _forward_impl(x):
     x = model.conv1(x)
@@ -39,12 +38,6 @@ def _forward_impl(x):
 model._forward_impl = _forward_impl
 
 
-folder = os.path.dirname(os.path.abspath(__file__))
-names_file = os.path.join(folder, "imagenet_classes.txt")
-with open(names_file, "r") as f:
-    IMAGENET_CLASS_NAMES = [s.strip() for s in f.readlines()]
-
-
 def encode(uint8_rgb_image):
     """ Compute a latent vector for a raw RGB image. """
 
@@ -56,58 +49,3 @@ def encode(uint8_rgb_image):
         return encoding.squeeze(0).numpy()
 
 
-if __name__ == "__main__":
-
-    from PIL import Image
-
-    import cv2 as cv
-    from matplotlib import pyplot as plt
-
-    cam = cv.VideoCapture(0)
-    
-    result, bgr = cam.read()
-    rgb = bgr[:, :, ::-1]
-
-    input_image = Image.fromarray(rgb[:, ::-1, :])
-    input_tensor = preprocess(input_image)
-    with torch.no_grad():
-        logits, encoding = model(input_tensor.unsqueeze(0))
-        logits = logits.squeeze(0)
-        encoding = encoding.squeeze(0)
-
-    plt.ion()
-
-    figure, (left, right) = plt.subplots(figsize=(12, 6),
-                                         ncols=2,
-                                         width_ratios=(5, 1))
-
-    cam_display = left.imshow(bgr[:, ::-1, ::-1])
-    left.axis("off")
-
-    dot_plot, = right.plot([], [], ".")
-    figure.suptitle("|||||", fontsize=48)
-    right.set_xlim(-10, +10)
-    right.set_ylim(-1, len(encoding) + 1)
-    right.axis("off")
-
-    figure.tight_layout()
-
-    while plt.fignum_exists(figure.number):
-
-        result, bgr = cam.read()
-        rgb = bgr[:, :, ::-1]
-
-        input_image = Image.fromarray(rgb[:, ::-1, :])
-        input_tensor = preprocess(input_image)
-        with torch.no_grad():
-            logits, encoding = model(input_tensor.unsqueeze(0))
-            logits = logits.squeeze(0)
-            encoding = encoding.squeeze(0)
-        winner = IMAGENET_CLASS_NAMES[np.argmax(logits)]
-        print(winner)
-
-        cam_display.set_data(bgr[:, ::-1, ::-1])
-        dot_plot.set_data(encoding, range(len(encoding)))
-        figure.suptitle(winner, fontsize=48)
-
-        plt.pause(1 / 12)
