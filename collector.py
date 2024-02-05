@@ -10,6 +10,7 @@ RIGHT = 1
 LEFT_COLOR = "orange"
 RIGHT_COLOR = "magenta"
 
+
 class DataCollector:
 
     def __init__(self, image_encoder, discriminator):
