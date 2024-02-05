@@ -131,6 +131,7 @@ class DataCollector:
             barplot.set_color(RIGHT_COLOR if evidence > 0 else LEFT_COLOR)
             barplot.set_data([0, evidence], [0, 0])
             window.set_data(frame)
+            del frame
             plt.pause(0.001)
             if not plt.fignum_exists(self.figure.number):
                 break  # the figure was closed manually
@@ -284,6 +285,8 @@ class DataCollector:
         self.keep_button.set_active(False)
         self.discard_button.set_active(False)
         self.currently_selected_class = None
+
+        del self.current_image_list
 
         sizes = self.num_examples_per_class()
         print("CLASS SIZES:", sizes)
