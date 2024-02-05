@@ -115,7 +115,7 @@ class DataCollector:
         rgb = self.read_rgb()
         window = image_axes.imshow(rgb)
         bar_axes = plt.subplot2grid((nrows, 2), (nrows - 1, 0))
-        barplot, = bar_axes.plot([], [], lw=10)
+        barplot, = bar_axes.plot([], [], lw=30)
         bar_axes.set_xlim(-30.0, 30.0)
         bar_axes.set_ylim(-1.0, +1.0)
         bar_axes.set_yticks([])
@@ -149,7 +149,7 @@ class DataCollector:
                 barplot.set_color("orange")
             else:
                 barplot.set_color("magenta")
-            barplot.set_data([0.0, evidence], [0, 0])
+            barplot.set_data([0.0, -evidence], [0, 0])
             nsteps = len(self.current_encoding_list)
             name = self.currently_selected_class
             num_correct = sum(self.current_results_list)
@@ -187,15 +187,15 @@ class DataCollector:
             axes.axis("off")
         
         keep_axes = plt.subplot2grid((nrows, ncols),
-                                     (nrows - 1, 0),
-                                     colspan=ncols // 2)
-        
-        discard_axes = plt.subplot2grid((nrows, ncols),
                                         (nrows - 1, ncols // 2),
                                         colspan=ncols // 2)
 
-        self.keep_button = Button(keep_axes, "YES, SAVE")
-        self.discard_button = Button(discard_axes, "NO, DISCARD")
+        discard_axes = plt.subplot2grid((nrows, ncols),
+                                     (nrows - 1, 0),
+                                     colspan=ncols // 2)
+        
+        self.discard_button = Button(discard_axes, "NO, DISCARD", color="lightsalmon")
+        self.keep_button = Button(keep_axes, "YES, SAVE", color="palegreen")
 
         self.keep_button.on_clicked(self.save_recording)
         self.discard_button.on_clicked(self.discard_recording)
@@ -274,12 +274,12 @@ class DataCollector:
         self.continue_button.on_clicked(self.initialize_before_recording_screen)
 
         counts = self.num_examples_per_class()
-        hist_axes.hist(pos_scores, bins=30, color="orange", alpha=0.5,
+        hist_axes.hist(-pos_scores, bins=30, color="orange", alpha=0.5,
                        density=True, label="CLASS A (N=%s)" % counts["A"])
-        hist_axes.hist(neg_scores, bins=30, color="magenta", alpha=0.5,
+        hist_axes.hist(-neg_scores, bins=30, color="magenta", alpha=0.5,
                        density=True, label="CLASS B (N=%s)" % counts["B"])
         hist_axes.legend()
-        hist_axes.set_title("Evidence for class A according to the model AFTER FIT")
+        hist_axes.set_title("Evidence for class B according to the model AFTER FIT")
         self.figure.tight_layout()
         plt.pause(0.001)
 
