@@ -1,7 +1,7 @@
 import numpy as np
 import cv2 as cv
 from matplotlib import pyplot as plt
-from matplotlib.widgets import Button
+from matplotlib.widgets import Button, TextBox
 
 
 LEFT = 0
@@ -20,6 +20,7 @@ class DataCollector:
         self.image_encoder = image_encoder
         self.discriminator = discriminator
         self.class_latent_episodes = {LEFT: [], RIGHT: []}
+        self.class_names = {LEFT: "", RIGHT: ""}
         self.time_of_last_image_capture = -float("inf")
         self.currently_selected_class = None
         self.recording_in_progress = False
@@ -30,13 +31,51 @@ class DataCollector:
         print("Done: resolution %sx%s.\n" % (height, width))
         self.figure = plt.figure(figsize=(12, 8))
         self.figure.canvas.mpl_connect("close_event", self.on_close)
-        self.show_ready_to_record({})
-    
+        self.show_provide_names({})
+
     def on_close(self, event):
         print("The figure was closed.\n\n")
 
-    def set_title(self, string, color="black"):
-        print(string)
+    def show_provide_names(self, event):
+
+        self.figure.clf()
+
+        self.top_axes = plt.subplot2grid((2, 1), (0, 0))
+        self.bot_axes = plt.subplot2grid((2, 1), (1, 0))
+
+        self.top_box = TextBox(self.top_axes, label="A:")
+        self.bot_box = TextBox(self.bot_axes, label="B:")
+
+        self.top_box.label.set_fontsize(28)
+        self.bot_box.label.set_fontsize(28)
+        self.top_box.label.set_fontweight("bold")
+        self.bot_box.label.set_fontweight("bold")
+        self.top_box.label.set_color("green")
+        self.bot_box.label.set_color("blue")
+
+        self.top_box.text_disp.set_fontsize(28)
+        self.bot_box.text_disp.set_fontsize(28)
+
+        plt.pause(0.001)
+
+        self.top_box.on_submit(self.store_name_neg)
+        self.bot_box.on_submit(self.store_name_pos_and_continue)
+
+        self.figure.suptitle("NAME YOUR CLASSES")
+
+    def store_name_neg(self, text):
+        self.class_names[LEFT] = text.upper()
+
+    def store_name_pos_and_continue(self, text):
+        self.class_names[RIGHT] = text.upper()
+        if all(self.class_names.values()):
+            self.top_box.set_active(False)
+            self.bot_box.set_active(False)
+            self.show_ready_to_record({})
+
+    def set_title(self, string, color="black", print_too=True):
+        if print_too:
+            print(string)
         self.figure.suptitle(string,
                              fontsize=24,
                              fontweight="bold",
@@ -58,25 +97,29 @@ class DataCollector:
         self.figure.clf()
 
         self.set_title("Choose a class to start recording")
-        num_classes = 2
         nrows = 6  # more rows ==> larger image and smaller buttons
-        image_axes = plt.subplot2grid((nrows, num_classes),
-                                      (0, 0),
-                                      rowspan=nrows - 1,
-                                      colspan=num_classes)
+
+        image_axes = plt.subplot2grid((nrows, 2), (0, 0),
+                                      rowspan=nrows - 2, colspan=2)
         image_axes.axis("off")
         rgb = self.read_rgb()
         window = image_axes.imshow(rgb)
+
+        bar_axes = plt.subplot2grid((nrows, 2), (nrows - 2, 0), colspan=2)
+        barplot, = bar_axes.plot([], [], lw=30)
+        bar_axes.set_xlim(-1100.0, 1100.0)
+        bar_axes.set_ylim(-1.0, +1.0)
+        bar_axes.set_yticks([])
 
         self.left_axes = plt.subplot2grid((nrows, 2), (nrows - 1, 0))
         self.right_axes = plt.subplot2grid((nrows, 2), (nrows - 1, 1))
 
         self.left_button = Button(self.left_axes,
-                               "CLASS %s" % LEFT,
+                               "CLASS %r" % self.class_names[LEFT],
                                color=LEFT_COLOR)
 
         self.right_button = Button(self.right_axes,
-                               "CLASS %s" % RIGHT,
+                               "CLASS %r" % self.class_names[RIGHT],
                                color=RIGHT_COLOR)
 
         self.left_button.on_clicked(self.start_recording)
@@ -84,6 +127,9 @@ class DataCollector:
         self.figure.tight_layout()
         while self.currently_selected_class is None:
             frame = self.read_rgb()
+            evidence = self.discriminator(self.image_encoder(frame))
+            barplot.set_color(RIGHT_COLOR if evidence > 0 else LEFT_COLOR)
+            barplot.set_data([0, evidence], [0, 0])
             window.set_data(frame)
             plt.pause(0.001)
             if not plt.fignum_exists(self.figure.number):
@@ -104,9 +150,10 @@ class DataCollector:
     def show_recording_in_progress(self):
 
         self.figure.clf()
-        name = self.currently_selected_class
+        idx = self.currently_selected_class
+        name = self.class_names[idx]
         self.set_title("Recording for class %r." % name,
-                       color=LEFT_COLOR if name == LEFT else RIGHT_COLOR)
+                       color=LEFT_COLOR if idx == LEFT else RIGHT_COLOR)
 
         self.recording_in_progress = True
         nrows = 7  # more rows ==> larger image and smaller buttons
@@ -114,11 +161,13 @@ class DataCollector:
         image_axes.axis("off")
         rgb = self.read_rgb()
         window = image_axes.imshow(rgb)
+        
         bar_axes = plt.subplot2grid((nrows, 2), (nrows - 1, 0))
         barplot, = bar_axes.plot([], [], lw=30)
-        bar_axes.set_xlim(-30.0, 30.0)
+        bar_axes.set_xlim(-1100.0, 1100.0)
         bar_axes.set_ylim(-1.0, +1.0)
         bar_axes.set_yticks([])
+        
         button_axes = plt.subplot2grid((nrows, 2), (nrows - 1, 1))
         self.stop_button = Button(button_axes, "STOP")
         self.stop_button.on_clicked(self.stop_recording)
@@ -127,16 +176,18 @@ class DataCollector:
         self.current_image_list = []
         self.current_encoding_list = []
         self.current_results_list = []
+
         while self.recording_in_progress:
+
             frame = self.read_rgb()
-            window.set_data(frame)
             self.current_image_list.append(frame)
-            assert self.current_encoding_list is not None
+            window.set_data(frame)
 
             latent_vector = self.image_encoder(frame)
             self.current_encoding_list.append(latent_vector)
             evidence = self.discriminator(latent_vector)
-            assert np.shape(evidence) == (), np.shape(evidence)
+            barplot.set_color(RIGHT_COLOR if evidence > 0 else LEFT_COLOR)
+            barplot.set_data([0.0, evidence], [0, 0])
 
             # we categorize decisions as confidently correct,
             # confidently incorrect, or not confident:
@@ -144,18 +195,15 @@ class DataCollector:
                 self.current_results_list.append(evidence > 1e-5)
             elif self.currently_selected_class == LEFT:
                 self.current_results_list.append(evidence < -1e-5)
-
-            if evidence > 0.0:
-                barplot.set_color(RIGHT_COLOR)
-            else:
-                barplot.set_color(LEFT_COLOR)
-            barplot.set_data([0.0, evidence], [0, 0])
-            name = self.currently_selected_class
             num_correct = sum(self.current_results_list)
             num_total = len(self.current_results_list)
+
+            name = self.class_names[self.currently_selected_class]
+            color = LEFT_COLOR if idx == LEFT else RIGHT_COLOR
             self.set_title("%s/%s correct labels as class %r" %
                            (num_correct, num_total, name),
-                           color=LEFT_COLOR if name == LEFT else RIGHT_COLOR)
+                           color=color, print_too=False)
+
             plt.pause(0.001)
             if not plt.fignum_exists(self.figure.number):
                 break  # the figure was closed manually
@@ -170,8 +218,9 @@ class DataCollector:
     def show_rate_recording_screen(self):
 
         self.figure.clf()
-        name = self.currently_selected_class
-        self.set_title("Keep recording for class %r?" % name,
+        idx = self.currently_selected_class
+        name = self.class_names[idx]
+        self.set_title("Save video for class %r?" % name,
                        color=LEFT_COLOR if name == LEFT else RIGHT_COLOR)
 
         nrows = 5
@@ -215,8 +264,8 @@ class DataCollector:
         plt.pause(0.001)
 
     def num_examples_per_class(self):
-        return {label: sum(len(e) for e in collection) for
-                label, collection in self.class_latent_episodes.items()}
+        return {self.class_names[idx]: sum(len(e) for e in collection)
+                for idx, collection in self.class_latent_episodes.items()}
 
     def save_recording(self, mouse_event):
         self.figure.clf()
@@ -269,40 +318,45 @@ class DataCollector:
         self.continue_button.on_clicked(self.show_ready_to_record)
 
         counts = self.num_examples_per_class()
+        lname = self.class_names[LEFT]
+        rname = self.class_names[RIGHT]
 
-        hist_axes_top.hist(pos_scores_before,
-                           bins=25,
-                           color=RIGHT_COLOR,
-                           alpha=0.5,
-                           density=True,
-                           label="CLASS %s (N=%s)" % (RIGHT, counts[RIGHT]))
-        
-        hist_axes_top.hist(neg_scores_before,
-                           bins=25,
-                           color=LEFT_COLOR,
-                           alpha=0.5,
-                           density=True,
-                           label="CLASS %s (N=%s)" % (LEFT, counts[LEFT]))
-        
-        hist_axes_top.legend()
-        hist_axes_top.set_title("Evidence in favor of %r BEFORE FIT" % (RIGHT,))
+        if not (np.allclose(pos_scores_before, 0) and
+                np.allclose(neg_scores_before, 0)):
+
+            hist_axes_top.hist(pos_scores_before,
+                            bins=25,
+                            color=RIGHT_COLOR,
+                            alpha=0.5,
+                            density=True,
+                            label="CLASS %r (N=%s)" % (rname, counts[rname]))
+            
+            hist_axes_top.hist(neg_scores_before,
+                            bins=25,
+                            color=LEFT_COLOR,
+                            alpha=0.5,
+                            density=True,
+                            label="CLASS %r (N=%s)" % (lname, counts[lname]))
+            
+            hist_axes_top.legend()
+            hist_axes_top.set_title("BEFORE model fitting")
 
         hist_axes_bot.hist(pos_scores_after,
                            bins=25,
                            color=RIGHT_COLOR,
                            alpha=0.5,
                            density=True,
-                           label="CLASS %s (N=%s)" % (RIGHT, counts[RIGHT]))
+                           label="CLASS %r (N=%s)" % (rname, counts[rname]))
         
         hist_axes_bot.hist(neg_scores_after,
                            bins=25,
                            color=LEFT_COLOR,
                            alpha=0.5,
                            density=True,
-                           label="CLASS %s (N=%s)" % (LEFT, counts[LEFT]))
+                           label="CLASS %r (N=%s)" % (lname, counts[lname]))
         
         hist_axes_bot.legend()
-        hist_axes_bot.set_title("Evidence in favor of %r AFTER FIT" % (RIGHT,))
+        hist_axes_bot.set_title("AFTER model fitting")
 
         self.figure.tight_layout()
         plt.pause(0.001)
