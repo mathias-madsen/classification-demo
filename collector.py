@@ -1,5 +1,6 @@
 import numpy as np
 import cv2 as cv
+from matplotlib.patches import Rectangle
 from matplotlib import pyplot as plt
 from matplotlib.widgets import Button, TextBox
 
@@ -9,6 +10,20 @@ RIGHT = 1
 
 LEFT_COLOR = "orange"
 RIGHT_COLOR = "magenta"
+
+
+class EvidenceBar(Rectangle):
+
+    def __init__(self, axes, maxval=350.0):
+        Rectangle.__init__(self, xy=(0.0, 0.1), width=0, height=0.8)
+        axes.add_patch(self)
+        axes.set_ylim(0, 1)
+        axes.set_yticks([])
+        axes.set_xlim(-maxval, +maxval)
+    
+    def set_value(self, value):
+        self.set_width(value)
+        self.set_color(LEFT_COLOR if value < 0 else RIGHT_COLOR)
 
 
 class DataCollector:
@@ -106,10 +121,7 @@ class DataCollector:
         window = image_axes.imshow(rgb)
 
         bar_axes = plt.subplot2grid((nrows, 2), (nrows - 2, 0), colspan=2)
-        barplot, = bar_axes.plot([], [], lw=30)
-        bar_axes.set_xlim(-1100.0, 1100.0)
-        bar_axes.set_ylim(-1.0, +1.0)
-        bar_axes.set_yticks([])
+        barplot = EvidenceBar(bar_axes)
 
         self.left_axes = plt.subplot2grid((nrows, 2), (nrows - 1, 0))
         self.right_axes = plt.subplot2grid((nrows, 2), (nrows - 1, 1))
@@ -128,8 +140,7 @@ class DataCollector:
         while self.currently_selected_class is None:
             frame = self.read_rgb()
             evidence = self.discriminator(self.image_encoder(frame))
-            barplot.set_color(RIGHT_COLOR if evidence > 0 else LEFT_COLOR)
-            barplot.set_data([0, evidence], [0, 0])
+            barplot.set_value(evidence)
             window.set_data(frame)
             del frame
             plt.pause(0.001)
@@ -164,10 +175,7 @@ class DataCollector:
         window = image_axes.imshow(rgb)
         
         bar_axes = plt.subplot2grid((nrows, 2), (nrows - 1, 0))
-        barplot, = bar_axes.plot([], [], lw=30)
-        bar_axes.set_xlim(-1100.0, 1100.0)
-        bar_axes.set_ylim(-1.0, +1.0)
-        bar_axes.set_yticks([])
+        barplot = EvidenceBar(bar_axes)
         
         button_axes = plt.subplot2grid((nrows, 2), (nrows - 1, 1))
         self.stop_button = Button(button_axes, "STOP")
@@ -187,8 +195,7 @@ class DataCollector:
             latent_vector = self.image_encoder(frame)
             self.current_encoding_list.append(latent_vector)
             evidence = self.discriminator(latent_vector)
-            barplot.set_color(RIGHT_COLOR if evidence > 0 else LEFT_COLOR)
-            barplot.set_data([0.0, evidence], [0, 0])
+            barplot.set_value(evidence)
 
             # we categorize decisions as confidently correct,
             # confidently incorrect, or not confident:
