@@ -2,7 +2,8 @@ from matplotlib import pyplot as plt
 from IPython.terminal.embed import InteractiveShellEmbed
 
 from discriminator import BiGaussianDiscriminator
-from image_encoding import encode
+# from image_encoding import encode
+from pretrained import encode
 from collector import DataCollector
 
 
