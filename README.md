@@ -1,4 +1,4 @@
-# Introduction
+# Instant Classifier Training
 
 This repository contains a demo that allows you to teach a neural network to classify an image in an online fashion.
 
@@ -11,7 +11,7 @@ The recording tool shows you how well the classifier performs on novel images as
 ![how_it_works](https://github.com/mathias-madsen/classification-demo/assets/16747080/7a1466a0-f6db-4f4d-871d-a3e99b0a538c)
 
 
-# Installation
+# Installation and Use
 
 To install the dependencies, make sure you have [Python 3](https://www.python.org/downloads/) 
 installed and run
