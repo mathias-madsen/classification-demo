@@ -29,6 +29,7 @@ class EvidenceBar(Rectangle):
 class DataCollector:
 
     def __init__(self, image_encoder, discriminator):
+        self.maxval = 100.0
         if not plt.isinteractive():
             raise RuntimeError("Please call plt.ion() "
                                "before running this demo.")
@@ -121,7 +122,7 @@ class DataCollector:
         window = image_axes.imshow(rgb)
 
         bar_axes = plt.subplot2grid((nrows, 2), (nrows - 2, 0), colspan=2)
-        barplot = EvidenceBar(bar_axes)
+        barplot = EvidenceBar(bar_axes, maxval=self.maxval)
 
         self.left_axes = plt.subplot2grid((nrows, 2), (nrows - 1, 0))
         self.right_axes = plt.subplot2grid((nrows, 2), (nrows - 1, 1))
@@ -175,7 +176,7 @@ class DataCollector:
         window = image_axes.imshow(rgb)
         
         bar_axes = plt.subplot2grid((nrows, 2), (nrows - 1, 0))
-        barplot = EvidenceBar(bar_axes)
+        barplot = EvidenceBar(bar_axes, maxval=self.maxval)
         
         button_axes = plt.subplot2grid((nrows, 2), (nrows - 1, 1))
         self.stop_button = Button(button_axes, "STOP")
@@ -367,6 +368,9 @@ class DataCollector:
         
         hist_axes_bot.legend()
         hist_axes_bot.set_title("AFTER model fitting")
+
+        all_scores = np.concatenate([pos_scores_after, neg_scores_after])
+        self.maxval = 1.5 * np.max(np.abs(all_scores))
 
         self.figure.tight_layout()
         plt.pause(0.001)
