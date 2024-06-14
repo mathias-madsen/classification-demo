@@ -46,6 +46,7 @@ if __name__ == "__main__":
     parser.add_argument("filetype",
                         type=str,
                         default=".mp4",
+                        nargs="?",
                         help="file name extension to search for")
 
     args = parser.parse_args()
