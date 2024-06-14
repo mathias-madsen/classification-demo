@@ -1,7 +1,17 @@
-This repository contains a demo that allows you to teach a neural network
-to classify an image in an online fashion. The demo will prompt you to
-record videos of the two image classes you wish to distinguish, and show
-you how well it performs at categorizing novel images.
+# Instant Classifier Training
+
+This repository contains a demo that allows you to teach a neural network to classify an image in an online fashion.
+
+![animation](https://github.com/mathias-madsen/classification-demo/assets/16747080/f84c37e6-a338-4f15-a14c-41961d1832a3)
+
+You train this classifier by recording videos of the two objects you want distinguish.
+
+The recording tool shows you how well the classifier performs on novel images as you go along. This all comes together in the following loop:
+
+![how_it_works](https://github.com/mathias-madsen/classification-demo/assets/16747080/7a1466a0-f6db-4f4d-871d-a3e99b0a538c)
+
+
+# Installation and Use
 
 To install the dependencies, make sure you have [Python 3](https://www.python.org/downloads/) 
 installed and run
