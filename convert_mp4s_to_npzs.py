@@ -38,19 +38,27 @@ def iter_frames(path):
 if __name__ == "__main__":
 
     parser = ArgumentParser()
+
     parser.add_argument("folder",
                         type=str,
                         help="folder in which to look for videos")
+
+    parser.add_argument("filetype",
+                        type=str,
+                        default=".mp4",
+                        help="file name extension to search for")
+
     args = parser.parse_args()
+
     if not os.path.isdir(args.folder):
         raise ValueError("%r must be a folder")
 
-    print("Seaching for .mp4 files in %r . . ." % (args.folder,))
+    print("Seaching for %s files in %r . . ." % (args.filetype, args.folder,))
     inout = {}
     for root, _, filenames in os.walk(args.folder):
         for fn in filenames:
             inpath = os.path.join(root, fn)
-            if inpath.endswith(".mp4"):
+            if inpath.endswith(args.filetype):
                 outpath = inpath[:-4] + ".npz"
                 inout[inpath] = outpath
                 # if not os.path.isfile(outpath):
@@ -61,10 +69,10 @@ if __name__ == "__main__":
     print()
 
     for inpath, outpath in inout.items():
-        print("Loading from MP4 . . .")
+        print("Loading from %s . . ." % args.filetype)
         frames = [normalize(f) for f in iter_frames(inpath)]
         print("Done.\n")
 
-        print("Saving as NPZ . . .")
+        print("Saving as .npz . . .")
         np.savez(outpath, np.stack(frames, axis=0))
         print("Done.\n")
