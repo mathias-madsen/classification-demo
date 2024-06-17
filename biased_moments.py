@@ -1,5 +1,5 @@
 import numpy as np
-# from scipy import stats
+from scipy import stats
 
 
 def logsumexp(x, axis=None, keepdims=False):
@@ -24,6 +24,18 @@ class BiasedMoments:
         self.cov += self.df/(self.df + 1)**2 * squared_mean_change
         self.mean = self.df/(self.df + 1)*self.mean + 1/(self.df + 1)*x
         self.df += 1
+    
+    def logpdf(self, x):
+        """ Compute the data likelihood under the MAP parameters. """
+        if self.df <= 0.0:
+            return 0.0
+        else:
+            return stats.multivariate_t.logpdf(
+                x,
+                df=self.df,
+                loc=self.mean,
+                shape=self.cov,  # SHAPE (cov) not scale
+                )
 
 
 class MixedGaussianModel(BiasedMoments):
@@ -71,7 +83,8 @@ class MixedGaussianModel(BiasedMoments):
             # self.compute_fixed_log_like(x),
         )
 
-    def compute_mixed_log_like(self, x):
+    def logpdf(self, x):
+        """ Compute the predictive likelihood of an observation. """
         loglikes = self.compute_all_log_likes(x)
         return logsumexp(self.log_weights + loglikes, axis=0)
 
@@ -79,7 +92,7 @@ class MixedGaussianModel(BiasedMoments):
         self.log_weights += self.compute_all_log_likes(x)
         self.log_weights -= logsumexp(self.log_weights, axis=0)
         super().update_with_single_observation(x)
-
+    
 
 def _test_biased_moments_with_df_set_to_zero():
 
