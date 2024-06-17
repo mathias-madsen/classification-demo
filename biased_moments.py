@@ -186,7 +186,7 @@ if __name__ == "__main__":
     from scipy import stats
     from matplotlib import pyplot as plt
 
-    nobs = 1000
+    nobs = 2000
     dim = 50
     true_mean = np.random.normal(size=dim)
     scale = np.random.normal(size=(dim, dim))
@@ -212,5 +212,6 @@ if __name__ == "__main__":
         plt.plot(cumulatives[:, idx] / span, label=label)
     plt.legend()
     plt.xlabel("$t$")
-    plt.ylabel("$\\sum_{s=0}^{t} \\log p(x_s \\, | \\, x_0, \\ldots, x_{s - 1})$")
+    plt.ylabel("$\\frac{1}{t} \\sum_{s=0}^{t} \\log "
+               "p(x_s \\, | \\, x_0, \\ldots, x_{s - 1})$")
     plt.show()
