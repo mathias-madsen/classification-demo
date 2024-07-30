@@ -4,27 +4,6 @@ from matplotlib import pyplot as plt
 from matplotlib.widgets import Button, TextBox
 
 
-class XimeaCamera:
-
-    def __init__(self):
-        from ximea import xiapi
-        self.cam = xiapi.Camera()
-        self.cam.open_device()
-        self.cam.set_exposure(10000)
-        self.cam.set_imgdataformat("XI_RGB24")
-        self.image = xiapi.Image()
-        self.cam.start_acquisition()
-
-    def read(self):
-        self.cam.get_image(self.image)
-        data_raw = self.image.get_image_data_raw()
-        data_array = np.frombuffer(data_raw, dtype=np.uint8)
-        height = self.image.height
-        width = self.image.width
-        reshaped = data_array.reshape([height, width, 3])
-        return True, reshaped
-
-
 LEFT = 0
 RIGHT = 1
 
@@ -65,6 +44,7 @@ class DataCollector:
             import cv2 as cv
             self.camera = cv.VideoCapture(source)
         else:
+            from ximea_camera import XimeaCamera
             self.camera = XimeaCamera()
         self.test_image = self.read_rgb()
         height, width, _ = self.test_image.shape
