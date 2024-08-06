@@ -9,6 +9,7 @@ from gaussians import marginal_log_likelihoods as likes
 class BiGaussianDiscriminator:
 
     def __init__(self, dim=None):
+        self.largest_entropy = -300.0
         if dim is not None:
             self.dist_pos = multivariate_normal(np.zeros(dim), np.eye(dim))
             self.dist_neg = multivariate_normal(np.zeros(dim), np.eye(dim))
@@ -107,20 +108,21 @@ class BiGaussianDiscriminator:
         else:
             raise Exception("Unpected inddex %s" % (winner,))
 
-        if self.dist_pos is not None:
-            self.dist_pos.mean[:] = posmean
-            self.dist_pos.cov[:] = poscov
-            self.dist_neg.mean[:] = negmean
-            self.dist_neg.cov[:] = negcov
-        else:
-            self.dist_pos = multivariate_normal(posmean, poscov)
-            self.dist_neg = multivariate_normal(negmean, negcov)
+        del self.dist_pos
+        del self.dist_neg
+        self.dist_pos = multivariate_normal(posmean, poscov)
+        self.dist_neg = multivariate_normal(negmean, negcov)
+        self.largest_entropy = max(self.dist_pos.entropy(),
+                                   self.dist_neg.entropy())
 
     def __call__(self, x):
-        if self.dist_pos is None:
-            return np.zeros_like(x[..., 0])
-        else:
-            return self.dist_pos.logpdf(x) - self.dist_neg.logpdf(x)
+        pos = self.dist_neg.logpdf(x)
+        neg = self.dist_pos.logpdf(x)
+        neither = -3 * self.largest_entropy * np.ones_like(pos)
+        logprobs = np.array([neither, pos, neg])
+        logprobs -= np.max(logprobs)
+        logsumexp = np.log(np.sum(np.exp(logprobs)))
+        return logprobs - logsumexp
     
     def save(self, path):
         if self.dist_neg is None or self.dist_pos is None:
