@@ -9,26 +9,39 @@ from dataset import EncodingData
 from gaussians.moments_tracker import combine
 
 
-LEFT = 0
-RIGHT = 1
+LEFT = 0  # left and 0 is 'negative'
+RIGHT = 1  # right and 1 is 'positive'
 
 LEFT_COLOR = "orange"
 RIGHT_COLOR = "magenta"
 
 
-class EvidenceBar(Rectangle):
+def invent_name():
+    """ Return a string that is part time information, part noise. """
+    head = datetime.now().strftime("%Y%m%d-%H%M%S")
+    alphabet = [chr(i) for i in range(65, 91)]
+    tail = "".join(np.random.choice(alphabet, size=6))
+    return head + "-" + tail
 
-    def __init__(self, axes, maxval=350.0):
-        Rectangle.__init__(self, xy=(0.0, 0.1), width=0, height=0.8)
-        axes.add_patch(self)
-        axes.set_ylim(0, 1)
-        axes.set_yticks([])
-        axes.set_xlim(-maxval, +maxval)
+
+class EvidencePlot:
+
+    def __init__(self, axes, labels):
+        axes.set_ylim(0, 4)
+        axes.set_xticks([0, .5, 1], ["0%", "50%", "100%"])
+        axes.set_xlim(-0.05, +1.05)
+        axes.set_yticks([3, 2, 1], list(labels) + ["NEITHER"])
+        self.line_left, = axes.plot([], [], "-", lw=10, color=LEFT_COLOR)
+        self.line_right, = axes.plot([], [], "-", lw=10, color=RIGHT_COLOR)
+        self.line_neither, = axes.plot([], [], "-", lw=10, color="gray")
     
-    def set_value(self, value):
-        self.set_width(value)
-        self.set_color(LEFT_COLOR if value < 0 else RIGHT_COLOR)
-
+    def set_logits(self, logprobs):
+        assert all(logprobs <= 0.0)
+        probs = np.exp(logprobs - np.max(logprobs))
+        probs /= np.sum(probs)
+        self.line_left.set_data([0, probs[1]], [3, 3])
+        self.line_right.set_data([0, probs[2]], [2, 2])
+        self.line_neither.set_data([0, probs[0]], [1, 1])
 
 
 class LoadBar:
@@ -163,7 +176,7 @@ class DataCollector:
         window = image_axes.imshow(rgb)
 
         bar_axes = plt.subplot2grid((nrows, 2), (nrows - 2, 0), colspan=2)
-        barplot = EvidenceBar(bar_axes, maxval=self.maxval)
+        barplot = EvidencePlot(bar_axes, labels=self.dataset.class_names.values())
 
         self.left_axes = plt.subplot2grid((nrows, 2), (nrows - 1, 0))
         self.right_axes = plt.subplot2grid((nrows, 2), (nrows - 1, 1))
@@ -196,8 +209,8 @@ class DataCollector:
             window.set_data(frame)
             if nonempty and nshown % 3 == 0:
                 latent = self.dataset.image_encoder(frame)
-                evidence = self.discriminator(latent)
-                barplot.set_value(evidence)
+                logprobs = self.discriminator(latent)
+                barplot.set_logits(logprobs)
             del frame
             nshown += 1
             if not plt.fignum_exists(self.figure.number):
@@ -243,7 +256,7 @@ class DataCollector:
             )
 
         bar_axes = plt.subplot2grid((nrows, 2), (nrows - 1, 0))
-        barplot = EvidenceBar(bar_axes, maxval=self.maxval)
+        barplot = EvidencePlot(bar_axes, labels=self.dataset.class_names.values())
         
         button_axes = plt.subplot2grid((nrows, 2), (nrows - 1, 1))
         self.stop_button = Button(button_axes, "STOP")
@@ -263,8 +276,8 @@ class DataCollector:
 
             if (nframes % self.frames_per_update == 0 and nonempty):
                 all_latents = self.dataset.current_encoding_list
-                evidence = self.discriminator(all_latents[-1])
-                barplot.set_value(evidence)
+                logprobs = self.discriminator(all_latents[-1])
+                barplot.set_logits(logprobs)
             
             name = self.dataset.get_current_class_name()            
             header = "Recorded %s examples of class %r" % (nframes, name)
@@ -381,8 +394,9 @@ class DataCollector:
                                        if i != idx])  # only selected right
                 self.discriminator.fit_with_moments(train_right, train_left)
                 test_right = right_latent[idx]
-                logits = self.discriminator(test_right)
-                right_accuracies.append(logits > 1e-5)
+                logprobs = self.discriminator(test_right)
+                winners = np.argmax(logprobs, axis=0)
+                right_accuracies.append(winners == 2)
                 load_bar.update()
             right_crossval_accuracy = np.mean(np.concatenate(right_accuracies))
             print("RIGHT CROSSVAL ACCURACY:", right_crossval_accuracy)
@@ -395,8 +409,9 @@ class DataCollector:
                 train_right = combine(right_stats)  # all right
                 self.discriminator.fit_with_moments(train_right, train_left)
                 test_left = left_latent[idx]
-                logits = self.discriminator(test_left)
-                left_accuracies.append(logits < -1e-5)
+                logprobs = self.discriminator(test_left)
+                winners = np.argmax(logprobs, axis=0)
+                left_accuracies.append(winners == 1)
                 load_bar.update()
             left_crossval_accuracy = np.mean(np.concatenate(left_accuracies))
             print("LEFT CROSSVAL ACCURACY:", left_crossval_accuracy)
