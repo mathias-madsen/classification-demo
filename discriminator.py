@@ -3,7 +3,7 @@ import numpy as np
 from scipy.stats import multivariate_normal
 
 
-def biased_moments(vectors):
+def biased_moments(vectors, prior_mean=None, prior_cov=None):
     """ Conservative estimates of mean vector and covariance matrix. """
 
     assert not np.any(np.isnan(vectors))
@@ -12,12 +12,18 @@ def biased_moments(vectors):
     length, dim = vectors.shape
     data_weight = length / (length + dim)
 
+    if prior_mean is None:
+        prior_mean = np.zeros(dim)
+    
+    if prior_cov is None:
+        prior_cov = np.eye(dim)
+
     empirical_mean = np.mean(vectors, axis=0)
-    biased_mean = data_weight*empirical_mean  # leans towards zero
+    biased_mean = (1 - data_weight)*prior_mean + data_weight*empirical_mean
 
     devs = vectors - biased_mean
     empirical_cov = devs.T @ devs / len(devs)
-    biased_cov = (1 - data_weight)*np.eye(dim) + data_weight*empirical_cov
+    biased_cov = (1 - data_weight)*prior_cov + data_weight*empirical_cov
 
     assert not np.any(np.isnan(biased_mean))
     assert not np.any(np.isnan(biased_cov))
@@ -34,8 +40,14 @@ class BiGaussianDiscriminator:
     def fit(self, positive_examples, negative_examples):
         
         print("Fitting . . .")
-        self.dist_pos = multivariate_normal(*biased_moments(positive_examples))
-        self.dist_neg = multivariate_normal(*biased_moments(negative_examples))
+        pooled = np.concatenate([positive_examples, negative_examples], axis=0)
+        mean, cov = biased_moments(pooled)
+        pos_mean, pos_cov = biased_moments(positive_examples, mean, cov)
+        # self.dist_pos = multivariate_normal(pos_mean, pos_cov)
+        self.dist_pos = multivariate_normal(pos_mean, cov)
+        neg_mean, neg_cov = biased_moments(negative_examples, mean, cov)
+        # self.dist_neg = multivariate_normal(neg_mean, neg_cov)
+        self.dist_neg = multivariate_normal(neg_mean, cov)
         print("Done fitting.")
 
     def __call__(self, x):

@@ -14,7 +14,8 @@ from matplotlib.patches import Rectangle
 from scipy import ndimage
 from argparse import ArgumentParser
 
-from image_encoding import encode
+# from image_encoding import encode
+from pretrained import encode
 from discriminator import BiGaussianDiscriminator
 
 
@@ -135,6 +136,8 @@ if __name__ == "__main__":
             axlist[i].set_title(class_name)
             i += 1
     figure.tight_layout()
+    separation_figure_path = os.path.join(args.folder, "separation.png")
+    figure.savefig(separation_figure_path)
     plt.show()
 
     frame = next(iter(videodict.values()))[0][0]
@@ -143,7 +146,7 @@ if __name__ == "__main__":
     axes.axis("off")
     axes.set_title("XXX", fontsize=24)
     figure.tight_layout()
-    plt.pause(10.0)
+    plt.pause(0.01)
     for name in videodict.keys():
         for codelist, videolist in zip(codesdict[name], videodict[name]):
             evidence_history = np.array([discriminator(c) for c in codelist])
@@ -151,7 +154,7 @@ if __name__ == "__main__":
             for frame, evidence in zip(videolist[::5], evidence_history[::5]):
                 panel.set_data(frame)
                 color = "black" if evidence < 0 else "blue"
-                axes.set_title("%.1f" % evidence, fontsize=24, color=color)
+                axes.set_title("%.5f" % evidence, fontsize=24, color=color)
                 plt.pause(1 / 15)
                 if not plt.fignum_exists(figure.number):
                     break
