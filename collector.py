@@ -70,8 +70,8 @@ class DataCollector:
         self.bot_box.label.set_fontsize(28)
         self.top_box.label.set_fontweight("bold")
         self.bot_box.label.set_fontweight("bold")
-        self.top_box.label.set_color("green")
-        self.bot_box.label.set_color("blue")
+        self.top_box.label.set_color(LEFT_COLOR)
+        self.bot_box.label.set_color(RIGHT_COLOR)
 
         self.top_box.text_disp.set_fontsize(28)
         self.bot_box.text_disp.set_fontsize(28)
