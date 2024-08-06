@@ -35,13 +35,14 @@ from gaussians.moments_tracker import MomentsTracker, combine
 class BiGaussianDiscriminator:
 
     def __init__(self, dim=None):
+        self.largest_entropy = -300.0
         if dim is not None:
             self.dist_pos = multivariate_normal(np.zeros(dim), np.eye(dim))
             self.dist_neg = multivariate_normal(np.zeros(dim), np.eye(dim))
         else:
             self.dist_pos = None
             self.dist_neg = None
-    
+
     def fit(self, positive_examples, negative_examples):
         
         print("Fitting . . .")
@@ -68,21 +69,21 @@ class BiGaussianDiscriminator:
         mean2 = N2 / (N2 + dim) * negative_stats.mean + dim / (N2 + dim) * poolmean
         del xbar
 
-        if self.dist_pos is not None:
-            self.dist_pos.mean[:] = mean1
-            self.dist_pos.cov[:] = poolcov
-            self.dist_neg.mean[:] = mean2
-            self.dist_neg.cov[:] = poolcov
-        else:
-            self.dist_pos = multivariate_normal(mean1, poolcov)
-            self.dist_neg = multivariate_normal(mean2, poolcov)
+        del self.dist_pos
+        del self.dist_neg
+        self.dist_pos = multivariate_normal(mean1, poolcov)
+        self.dist_neg = multivariate_normal(mean2, poolcov)
+        self.largest_entropy = max(self.dist_pos.entropy(),
+                                   self.dist_neg.entropy())
 
     def __call__(self, x):
-        if self.dist_pos is None:
-            return np.zeros_like(x[..., 0])
-        else:
-            return self.dist_pos.logpdf(x) - self.dist_neg.logpdf(x)
-
+        pos = self.dist_neg.logpdf(x)
+        neg = self.dist_pos.logpdf(x)
+        neither = -3 * self.largest_entropy * np.ones_like(pos)
+        logprobs = np.array([neither, pos, neg])
+        logprobs -= np.max(logprobs)
+        logsumexp = np.log(np.sum(np.exp(logprobs)))
+        return logprobs - logsumexp
 
 def test_bigaussian_discriminator():
 
