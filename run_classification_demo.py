@@ -14,6 +14,6 @@ if __name__ == "__main__":
 
     plt.ion()
     collector = DataCollector(image_encoder=encode_with_pretrained,
-                              discriminator=BiGaussianDiscriminator())
+                              discriminator=BiGaussianDiscriminator(1707))
 
     shell()
