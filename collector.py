@@ -11,7 +11,6 @@ from matplotlib.widgets import Button, TextBox
 
 from gaussians.moments_tracker import MomentsTracker, combine
 
-
 LEFT = 0  # left and 0 is 'negative'
 RIGHT = 1  # right and 1 is 'positive'
 
