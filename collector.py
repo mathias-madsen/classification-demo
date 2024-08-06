@@ -5,26 +5,11 @@ from matplotlib.widgets import Button, TextBox
 
 from gaussians.moments_tracker import MomentsTracker, combine
 
-
 LEFT = 0  # left and 0 is 'negative'
 RIGHT = 1  # right and 1 is 'positive'
 
 LEFT_COLOR = "orange"
 RIGHT_COLOR = "magenta"
-
-
-# class EvidenceBar(Rectangle):
-
-#     def __init__(self, axes, maxval=350.0):
-#         Rectangle.__init__(self, xy=(0.0, 0.1), width=0, height=0.8)
-#         axes.add_patch(self)
-#         axes.set_ylim(0, 1)
-#         axes.set_yticks([])
-#         axes.set_xlim(-maxval, +maxval)
-    
-#     def set_value(self, value):
-#         self.set_width(value)
-#         self.set_color(LEFT_COLOR if value < 0 else RIGHT_COLOR)
 
 
 class EvidencePlot:
