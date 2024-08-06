@@ -145,7 +145,8 @@ class DataCollector:
         while self.currently_selected_class is None:
             frame = self.read_rgb()
             evidence = self.discriminator(self.image_encoder(frame))
-            barplot.set_value(evidence)
+            if all(n >= 1 for n in self.num_examples_per_class().values()):
+                barplot.set_value(evidence)
             window.set_data(frame)
             del frame
             plt.pause(0.001)
@@ -200,7 +201,8 @@ class DataCollector:
             latent_vector = self.image_encoder(frame)
             self.current_encoding_list.append(latent_vector)
             evidence = self.discriminator(latent_vector)
-            barplot.set_value(evidence)
+            if all(n >= 1 for n in self.num_examples_per_class().values()):
+                barplot.set_value(evidence)
 
             # we categorize decisions as confidently correct,
             # confidently incorrect, or not confident:

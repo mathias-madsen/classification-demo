@@ -27,9 +27,9 @@ def biased_moments(vectors):
 
 class BiGaussianDiscriminator:
 
-    def __init__(self):
-        self.dist_pos = None
-        self.dist_neg = None
+    def __init__(self, dim=205):
+        self.dist_pos = multivariate_normal(np.zeros(dim), np.eye(dim))
+        self.dist_neg = multivariate_normal(np.zeros(dim), np.eye(dim))
     
     def fit(self, positive_examples, negative_examples):
         
@@ -39,10 +39,7 @@ class BiGaussianDiscriminator:
         print("Done fitting.")
 
     def __call__(self, x):
-        if self.dist_pos is None or self.dist_neg is None:
-            return np.zeros_like(x[..., 0])
-        else:
-            return self.dist_pos.logpdf(x) - self.dist_neg.logpdf(x)
+        return self.dist_pos.logpdf(x) - self.dist_neg.logpdf(x)
 
 
 
