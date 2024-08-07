@@ -81,7 +81,7 @@ class MomentsTracker:
         return ("MomentsTracker(mean=%r, cov=%r, count=%r)" %
                 (self.mean, self.cov, self.count))
 
-    def clone(self):
+    def copy(self):
         """ Make a deep copy of the moments tracker. """
         mean = np.copy(self.mean)
         cov = np.copy(self.cov)
