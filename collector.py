@@ -27,6 +27,8 @@ class EvidenceBar(Rectangle):
 
 class DataCollector:
 
+    frames_per_update = 5
+
     def __init__(self, image_encoder, discriminator, source=0):
         self.maxval = 100.0
         if not plt.isinteractive():
@@ -142,12 +144,17 @@ class DataCollector:
         self.left_button.on_clicked(self.start_recording)
         self.right_button.on_clicked(self.start_recording)
         self.figure.tight_layout()
+        
+        recent_latents = []
         while self.currently_selected_class is None:
             frame = self.read_rgb()
-            evidence = self.discriminator(self.image_encoder(frame))
-            if all(n >= 1 for n in self.num_examples_per_class().values()):
-                barplot.set_value(evidence)
+            recent_latents.append(self.image_encoder(frame))
             window.set_data(frame)
+            if (len(recent_latents) >= self.frames_per_update
+                and self.all_classes_nonempty()):
+                evidence = self.discriminator(recent_latents).mean()
+                barplot.set_value(evidence)
+                recent_latents.clear()
             del frame
             plt.pause(0.001)
             if not plt.fignum_exists(self.figure.number):
@@ -190,7 +197,7 @@ class DataCollector:
 
         self.current_image_list = []
         self.current_encoding_list = []
-        self.current_results_list = []
+        recent_latents = []
 
         while self.recording_in_progress:
 
@@ -200,26 +207,22 @@ class DataCollector:
 
             latent_vector = self.image_encoder(frame)
             self.current_encoding_list.append(latent_vector)
-            evidence = self.discriminator(latent_vector)
-            if all(n >= 1 for n in self.num_examples_per_class().values()):
-                barplot.set_value(evidence)
+            recent_latents.append(latent_vector)
 
-            # we categorize decisions as confidently correct,
-            # confidently incorrect, or not confident:
-            if self.currently_selected_class == RIGHT:
-                self.current_results_list.append(evidence > 1e-5)
-            elif self.currently_selected_class == LEFT:
-                self.current_results_list.append(evidence < -1e-5)
-            num_correct = sum(self.current_results_list)
-            num_total = len(self.current_results_list)
+            if (len(recent_latents) >= self.frames_per_update
+                and self.all_classes_nonempty()):
+                evidence = self.discriminator(recent_latents).mean()
+                recent_latents.clear()
+                barplot.set_value(evidence)
 
             name = self.class_names[self.currently_selected_class]
             color = LEFT_COLOR if idx == LEFT else RIGHT_COLOR
-            self.set_title("%s/%s correct labels as class %r" %
-                           (num_correct, num_total, name),
-                           color=color, print_too=False)
+            nframes = len(self.current_encoding_list)
+            title = "Recorded %s examples of class %r" % (nframes, name)
+            self.set_title(title, color=color, print_too=False)
 
             plt.pause(0.001)
+
             if not plt.fignum_exists(self.figure.number):
                 break  # the figure was closed manually
 
@@ -282,6 +285,9 @@ class DataCollector:
         return {self.class_names[idx]: sum(len(e) for e in collection)
                 for idx, collection in self.class_latent_episodes.items()}
 
+    def all_classes_nonempty(self):
+        return all(n >= 1 for n in self.num_examples_per_class().values())
+
     def save_recording(self, mouse_event):
         self.figure.clf()
         self.set_title("Saving recording . . .")
@@ -302,11 +308,8 @@ class DataCollector:
 
         del self.current_image_list
 
-        sizes = self.num_examples_per_class()
-        print("CLASS SIZES:", sizes)
-        minlength = self.current_encoding_list.shape[1] + 1
-        assert minlength >= 1
-        if all(n >= 1 for n in sizes.values()):
+        print("CLASS SIZES:", self.num_examples_per_class())
+        if self.all_classes_nonempty():
             self.show_fit_results_screen()
         else:
             self.show_ready_to_record({})
