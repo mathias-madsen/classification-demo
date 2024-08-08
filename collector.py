@@ -469,7 +469,7 @@ class DataCollector:
             text_axes.text(x=0, y=1.5, s=title, fontsize=24,
                            fontweight="bold", color="gray")
 
-        size_info = "%s episodes (%s frames)" % (right_neps, right_nframes)
+        size_info = "%s episodes (%s frames)" % (left_neps, left_nframes)
         text_axes.text(x=0, y=1.0, s=size_info, fontsize=18)
 
 
