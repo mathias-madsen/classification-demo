@@ -419,36 +419,40 @@ class DataCollector:
         self.continue_button.on_clicked(self.show_ready_to_record)
         self.continue_button.label.set_fontsize(18)
 
-        text_axes.text(x=0, y=4, s=self.dataset.class_names[RIGHT],
-                       color=RIGHT_COLOR, fontweight="bold", fontsize=36)
+        # LEFT == 0
 
-        if right_crossval_accuracy is not None:
-            title = ("Cross-validated accuracy: %.1f pct" %
-                    (100 * right_crossval_accuracy,))
-            text_axes.text(x=0, y=3.5, s=title, fontsize=24,
-                           fontweight="bold", color=RIGHT_COLOR)
-        else:
-            title = ("Cross-validated accuracy: N/A")
-            text_axes.text(x=0, y=3.5, s=title, fontsize=24,
-                           fontweight="bold", color="gray")
-
-        size_info = "%s episodes (%s frames)" % (right_neps, right_nframes)
-        text_axes.text(x=0, y=3.0, s=size_info, fontsize=18)
-
-        text_axes.text(x=0, y=2.0, s=self.dataset.class_names[LEFT],
-                       color=LEFT_COLOR, fontweight="bold", fontsize=24)
+        text_axes.text(x=0, y=4.0, s=self.dataset.class_names[LEFT],
+                       color=LEFT_COLOR, fontweight="bold", fontsize=36)
 
         if left_crossval_accuracy is not None:
             title = ("Cross-validated accuracy: %.1f pct" %
                     (100 * left_crossval_accuracy,))
-            text_axes.text(x=0, y=1.5, s=title, fontsize=24,
+            text_axes.text(x=0, y=3.5, s=title, fontsize=24,
                            fontweight="bold", color=LEFT_COLOR)
+        else:
+            title = ("Cross-validated accuracy: N/A")
+            text_axes.text(x=0, y=3.5, s=title, fontsize=24,
+                           fontweight="bold", color="gray")
+
+        size_info = "%s episodes (%s frames)" % (left_neps, left_nframes)
+        text_axes.text(x=0, y=3.0, s=size_info, fontsize=18)
+
+        # RIGHT == 1
+
+        text_axes.text(x=0, y=2.0, s=self.dataset.class_names[RIGHT],
+                       color=RIGHT_COLOR, fontweight="bold", fontsize=24)
+
+        if right_crossval_accuracy is not None:
+            title = ("Cross-validated accuracy: %.1f pct" %
+                    (100 * right_crossval_accuracy,))
+            text_axes.text(x=0, y=1.5, s=title, fontsize=24,
+                           fontweight="bold", color=RIGHT_COLOR)
         else:
             title = ("Cross-validated accuracy: N/A")
             text_axes.text(x=0, y=1.5, s=title, fontsize=24,
                            fontweight="bold", color="gray")
 
-        size_info = "%s episodes (%s frames)" % (left_neps, left_nframes)
+        size_info = "%s episodes (%s frames)" % (right_neps, right_nframes)
         text_axes.text(x=0, y=1.0, s=size_info, fontsize=18)
 
         information = (
@@ -457,8 +461,8 @@ class DataCollector:
             "It can be computed for a class when there are at least two "
             "episodes of data for that class.\n"
             "\n"
-            "Note that it is normal for the cross-validation loss to oscillate"
-            "early on; it stabilizes as more data is added."
+            "Note that the cross-validation loss may vary when there are "
+            "few episodes; it stabilizes as more data is added."
             )
         text_axes.text(x=0, y=-1, s=information, fontsize=12, color="gray")
 
