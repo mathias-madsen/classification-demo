@@ -349,11 +349,46 @@ class DataCollector:
     def show_fit_results_screen(self):
 
         self.figure.clf()
-        pos_vectors = np.concatenate(self.dataset.class_episode_codes[RIGHT], axis=0)
-        neg_vectors = np.concatenate(self.dataset.class_episode_codes[LEFT], axis=0)
 
-        pos_scores_before = self.discriminator(pos_vectors)
-        neg_scores_before = self.discriminator(neg_vectors)
+        right_latent = self.dataset.class_episode_codes[RIGHT]
+        right_stats = self.dataset.class_episode_stats[RIGHT]
+        assert len(right_latent) == len(right_stats)
+        assert (sum(len(vs) for vs in right_latent) ==
+                sum(m.count for m in right_stats))
+
+        left_latent = self.dataset.class_episode_codes[LEFT]
+        left_stats = self.dataset.class_episode_stats[LEFT]
+        assert len(left_latent) == len(left_stats)
+        assert (sum(len(vs) for vs in left_latent) ==
+                sum(m.count for m in left_stats))
+
+        right_crossval_accuracy = None
+        left_crossval_accuracy = None
+
+        if len(right_stats) >= 2:
+            right_accuracies = []
+            for idx in range(len(right_stats)):
+                train_left = combine(left_stats)  # all left
+                train_right = combine([m for i, m in enumerate(right_stats)
+                                       if i != idx])  # only selected right
+                self.discriminator.fit_with_moments(train_right, train_left)
+                test_right = right_latent[idx]
+                logits = self.discriminator(test_right)
+                right_accuracies.append(logits > 1e-5)
+            right_crossval_accuracy = np.mean(np.concatenate(right_accuracies))
+            print("RIGHT CROSSVAL ACCURACY:", right_crossval_accuracy)
+        if len(left_stats) >= 2:
+            left_accuracies = []
+            for idx in range(len(left_stats)):
+                train_left = combine([m for i, m in enumerate(left_stats)
+                                      if i != idx])  # only selected left
+                train_right = combine(right_stats)  # all right
+                self.discriminator.fit_with_moments(train_right, train_left)
+                test_left = left_latent[idx]
+                logits = self.discriminator(test_left)
+                left_accuracies.append(logits < -1e-5)
+            left_crossval_accuracy = np.mean(np.concatenate(left_accuracies))
+            print("LEFT CROSSVAL ACCURACY:", left_crossval_accuracy)
 
         neg = combine(self.dataset.class_episode_stats[LEFT])
         pos = combine(self.dataset.class_episode_stats[RIGHT])
@@ -362,62 +397,77 @@ class DataCollector:
         outpath = os.path.join(self.dataset.rootdir, "discriminator.npz")
         self.discriminator.save(outpath)
 
-        pos_scores_after = self.discriminator(pos_vectors)
-        neg_scores_after = self.discriminator(neg_vectors)
+        # FYI, the training accuracy:
+        test_right = np.concatenate(self.dataset.class_episode_codes[RIGHT], axis=0)
+        test_left = np.concatenate(self.dataset.class_episode_codes[LEFT], axis=0)
+        accuracy_right = np.mean(self.discriminator(test_right) > 1e-5)
+        print("Training accuracy right:", accuracy_right)
+        accuracy_left = np.mean(self.discriminator(test_left) < -1e-5)
+        print("Training accuracy right:", accuracy_left)
+        print()
 
-        all_scores = np.concatenate([pos_scores_after, neg_scores_after])
-        self.maxval = 1.5 * np.max(np.abs(all_scores))
+        left_neps = len(self.dataset.class_episode_stats[LEFT])
+        right_neps = len(self.dataset.class_episode_stats[RIGHT])
+        left_nframes = sum(m.count for m in self.dataset.class_episode_stats[LEFT])
+        right_nframes = sum(m.count for m in self.dataset.class_episode_stats[RIGHT])
 
-        nrows = 6  # more rows ==> larger image and smaller buttons
-        rowspan = (nrows - 1) // 2
-        hist_axes_top = plt.subplot2grid((nrows, 1), (0, 0), rowspan=rowspan)
-        hist_axes_bot = plt.subplot2grid((nrows, 1), (rowspan, 0), rowspan=rowspan)
-        button_axes = plt.subplot2grid((nrows, 1), (2*rowspan, 0))
+        nrows = 6  # more rows ==> relatively smaller button
+        text_axes = plt.subplot2grid((nrows, 1), (0, 0), rowspan=nrows - 1)
+        button_axes = plt.subplot2grid((nrows, 1), (nrows - 1, 0))
 
         self.continue_button = Button(button_axes, "CONTINUE")
         self.continue_button.on_clicked(self.show_ready_to_record)
         self.continue_button.label.set_fontsize(18)
 
-        counts = self.dataset.num_examples_per_class()
-        lname = self.dataset.class_names[LEFT]
-        rname = self.dataset.class_names[RIGHT]
+        text_axes.text(x=0, y=4, s=self.dataset.class_names[RIGHT],
+                       color=RIGHT_COLOR, fontweight="bold", fontsize=36)
 
-        if not (np.allclose(pos_scores_before, 0) and
-                np.allclose(neg_scores_before, 0)):
+        if right_crossval_accuracy is not None:
+            title = ("Cross-validated accuracy: %.1f pct" %
+                    (100 * right_crossval_accuracy,))
+            text_axes.text(x=0, y=3.5, s=title, fontsize=24,
+                           fontweight="bold", color=RIGHT_COLOR)
+        else:
+            title = ("Cross-validated accuracy: N/A")
+            text_axes.text(x=0, y=3.5, s=title, fontsize=24,
+                           fontweight="bold", color="gray")
 
-            hist_axes_top.hist(pos_scores_before,
-                            bins=25,
-                            color=RIGHT_COLOR,
-                            alpha=0.5,
-                            density=True,
-                            label="CLASS %r (N=%s)" % (rname, counts[rname]))
-            
-            hist_axes_top.hist(neg_scores_before,
-                            bins=25,
-                            color=LEFT_COLOR,
-                            alpha=0.5,
-                            density=True,
-                            label="CLASS %r (N=%s)" % (lname, counts[lname]))
-            
-            hist_axes_top.legend()
-            hist_axes_top.set_title("BEFORE model fitting", fontsize=18)
+        size_info = "%s episodes (%s frames)" % (right_neps, right_nframes)
+        text_axes.text(x=0, y=3.0, s=size_info, fontsize=18)
 
-        hist_axes_bot.hist(pos_scores_after,
-                           bins=25,
-                           color=RIGHT_COLOR,
-                           alpha=0.5,
-                           density=True,
-                           label="CLASS %r (N=%s)" % (rname, counts[rname]))
-        
-        hist_axes_bot.hist(neg_scores_after,
-                           bins=25,
-                           color=LEFT_COLOR,
-                           alpha=0.5,
-                           density=True,
-                           label="CLASS %r (N=%s)" % (lname, counts[lname]))
-        
-        hist_axes_bot.legend()
-        hist_axes_bot.set_title("AFTER model fitting", fontsize=18)
+        text_axes.text(x=0, y=2.0, s=self.dataset.class_names[LEFT],
+                       color=LEFT_COLOR, fontweight="bold", fontsize=24)
+
+        if left_crossval_accuracy is not None:
+            title = ("Cross-validated accuracy: %.1f pct" %
+                    (100 * left_crossval_accuracy,))
+            text_axes.text(x=0, y=1.5, s=title, fontsize=24,
+                           fontweight="bold", color=LEFT_COLOR)
+        else:
+            title = ("Cross-validated accuracy: N/A")
+            text_axes.text(x=0, y=1.5, s=title, fontsize=24,
+                           fontweight="bold", color="gray")
+
+        size_info = "%s episodes (%s frames)" % (left_neps, left_nframes)
+        text_axes.text(x=0, y=1.0, s=size_info, fontsize=18)
+
+        information = (
+            "The cross-validation accuracy is computed by leaving out parts "
+            "of the data for testing while training on the rest.\n"
+            "It can be computed for a class when there are at least two "
+            "episodes of data for that class.\n"
+            "\n"
+            "Note that it is normal for the cross-validation loss to oscillate"
+            "early on; it stabilizes as more data is added."
+            )
+        text_axes.text(x=0, y=-1, s=information, fontsize=12, color="gray")
+
+
+        text_axes.set_ylim(-2, 5)
+        text_axes.axis("off")
+
+        outpath = os.path.join(self.dataset.rootdir, "params.npz")
+        self.discriminator.save(outpath)
 
         self.figure.tight_layout()
         plt.pause(0.001)
