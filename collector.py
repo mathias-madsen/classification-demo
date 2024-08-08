@@ -580,7 +580,6 @@ class DataCollector:
             )
         text_axes.text(x=0, y=-1, s=information, fontsize=12, color="gray")
 
-
         text_axes.set_ylim(-2, 5)
         text_axes.axis("off")
 
