@@ -97,7 +97,8 @@ class DataCollector:
         self.top_box.on_submit(self.store_name_neg)
         self.bot_box.on_submit(self.store_name_pos_and_continue)
 
-        self.figure.suptitle("NAME YOUR CLASSES")
+        self.figure.suptitle("NAME YOUR CLASSES",
+                             fontsize=24, fontweight="bold")
 
     def store_name_neg(self, text):
         self.class_names[LEFT] = text.upper()
@@ -157,6 +158,10 @@ class DataCollector:
 
         self.left_button.on_clicked(self.start_recording)
         self.right_button.on_clicked(self.start_recording)
+
+        self.left_button.label.set_fontsize(18)
+        self.right_button.label.set_fontsize(18)
+
         self.figure.tight_layout()
         
         recent_latents = []
@@ -207,6 +212,7 @@ class DataCollector:
         button_axes = plt.subplot2grid((nrows, 2), (nrows - 1, 1))
         self.stop_button = Button(button_axes, "STOP")
         self.stop_button.on_clicked(self.stop_recording)
+        self.stop_button.label.set_fontsize(18)
         self.figure.tight_layout()
 
         self.current_image_list = []
@@ -285,6 +291,8 @@ class DataCollector:
 
         self.keep_button.on_clicked(self.save_recording)
         self.discard_button.on_clicked(self.discard_recording)
+        self.discard_button.label.set_fontsize(18)
+        self.keep_button.label.set_fontsize(18)
 
         self.figure.tight_layout()
 
@@ -365,6 +373,7 @@ class DataCollector:
 
         self.continue_button = Button(button_axes, "CONTINUE")
         self.continue_button.on_clicked(self.show_ready_to_record)
+        self.continue_button.label.set_fontsize(18)
 
         counts = self.num_examples_per_class()
         lname = self.class_names[LEFT]
@@ -388,7 +397,7 @@ class DataCollector:
                             label="CLASS %r (N=%s)" % (lname, counts[lname]))
             
             hist_axes_top.legend()
-            hist_axes_top.set_title("BEFORE model fitting")
+            hist_axes_top.set_title("BEFORE model fitting", fontsize=18)
 
         hist_axes_bot.hist(pos_scores_after,
                            bins=25,
@@ -405,7 +414,7 @@ class DataCollector:
                            label="CLASS %r (N=%s)" % (lname, counts[lname]))
         
         hist_axes_bot.legend()
-        hist_axes_bot.set_title("AFTER model fitting")
+        hist_axes_bot.set_title("AFTER model fitting", fontsize=18)
 
         all_scores = np.concatenate([pos_scores_after, neg_scores_after])
         self.maxval = 1.5 * np.max(np.abs(all_scores))
