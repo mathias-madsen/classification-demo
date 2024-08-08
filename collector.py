@@ -30,10 +30,12 @@ class DataCollector:
     frames_per_update = 5
 
     def __init__(self, image_encoder, discriminator, source=0):
-        self.maxval = 100.0
+        
         if not plt.isinteractive():
             raise RuntimeError("Please call plt.ion() "
                                "before running this demo.")
+        
+        self.maxval = 100.0
         self.image_encoder = image_encoder
         self.discriminator = discriminator
         self.class_latent_episodes = {LEFT: [], RIGHT: []}
@@ -41,6 +43,7 @@ class DataCollector:
         self.time_of_last_image_capture = -float("inf")
         self.currently_selected_class = None
         self.recording_in_progress = False
+        
         print("Setting up camera . . .")
         if type(source) == int:
             import cv2 as cv
@@ -48,9 +51,15 @@ class DataCollector:
         else:
             from ximea_camera import XimeaCamera
             self.camera = XimeaCamera()
-        self.test_image = self.read_rgb()
-        height, width, _ = self.test_image.shape
+        test_image = self.read_rgb()
+        height, width, _ = test_image.shape
         print("Done: resolution %sx%s.\n" % (height, width))
+        
+        print("Testing image encoder . . .")
+        test_latent = self.image_encoder(test_image)
+        self.latent_dim, = test_latent.shape
+        print("Latent space dimensionality: %s.\n" % (self.latent_dim,))
+        
         self.figure = plt.figure(figsize=(12, 8))
         self.figure.canvas.mpl_connect("close_event", self.on_close)
         self.show_provide_names({})
