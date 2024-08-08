@@ -112,7 +112,7 @@ class DataCollector:
     def set_title(self, string, color="black", print_too=True):
         if print_too:
             print(string)
-        self.figure.suptitle(string,
+        self.figure.suptitle(string.strip(),
                              fontsize=24,
                              fontweight="bold",
                              color=color)
@@ -132,7 +132,7 @@ class DataCollector:
 
         self.figure.clf()
 
-        self.set_title("Choose a class to start recording")
+        self.set_title("Choose a class to start recording\n")
         nrows = 6  # more rows ==> larger image and smaller buttons
 
         image_axes = plt.subplot2grid((nrows, 2), (0, 0),
@@ -244,7 +244,7 @@ class DataCollector:
 
     def stop_recording(self, mouse_event):
 
-        print("Stopped recording.")
+        print("Stopped recording.\n")
         self.recording_in_progress = False
         self.stop_button.set_active(False)
         self.show_rate_recording_screen()
@@ -311,16 +311,19 @@ class DataCollector:
         # self.current_image_list = np.stack(self.current_image_list, axis=0)
         # print("Video shape: %r." % (self.current_image_list.shape,))
 
-        self.current_encoding_list = np.stack(self.current_encoding_list, axis=0)
-        print("Latent vectors shape: %r." % (self.current_encoding_list.shape,))
+        label = self.currently_selected_class  # an index, 0 or 1
+        name = self.class_names[label]
 
-        label = self.currently_selected_class
-        self.class_latent_episodes[label].append(self.current_encoding_list)
+        episode_array = np.stack(self.current_encoding_list, axis=0)
+        print("Adding %s frames to class %s." % (len(episode_array), name))
+
+        self.class_latent_episodes[label].append(episode_array)
 
         self.class_eps_stats[label].append(self.current_tracker.copy())
         self.current_tracker.reset()
 
-        self.set_title("Saved recording.")
+        self.set_title("Saved recording.\n")
+
         self.keep_button.set_active(False)
         self.discard_button.set_active(False)
         self.currently_selected_class = None
@@ -343,7 +346,11 @@ class DataCollector:
         neg_scores_before = self.discriminator(neg_vectors)
 
         neg_stats = combine(self.class_eps_stats[LEFT])
+        print("%r count: %s" % (self.class_names[LEFT], neg_stats.count))
         pos_stats = combine(self.class_eps_stats[RIGHT])
+        print("%r count: %s" % (self.class_names[RIGHT], pos_stats.count))
+        print()
+
         self.discriminator.fit_with_moments(pos_stats, neg_stats)
         # self.discriminator.fit(pos_vectors, neg_vectors)
 
