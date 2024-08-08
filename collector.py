@@ -3,6 +3,8 @@ from matplotlib.patches import Rectangle
 from matplotlib import pyplot as plt
 from matplotlib.widgets import Button, TextBox
 
+from gaussians.moments_tracker import MomentsTracker, combine
+
 
 LEFT = 0
 RIGHT = 1
@@ -43,7 +45,7 @@ class DataCollector:
         self.time_of_last_image_capture = -float("inf")
         self.currently_selected_class = None
         self.recording_in_progress = False
-        
+
         print("Setting up camera . . .")
         if type(source) == int:
             import cv2 as cv
@@ -54,12 +56,15 @@ class DataCollector:
         test_image = self.read_rgb()
         height, width, _ = test_image.shape
         print("Done: resolution %sx%s.\n" % (height, width))
-        
+
         print("Testing image encoder . . .")
         test_latent = self.image_encoder(test_image)
-        self.latent_dim, = test_latent.shape
+        self.latent_dim, = dim, = test_latent.shape
         print("Latent space dimensionality: %s.\n" % (self.latent_dim,))
-        
+
+        self.current_tracker = MomentsTracker(np.zeros(dim), np.eye(dim), 0)
+        self.class_eps_stats = {LEFT: [], RIGHT: []}
+
         self.figure = plt.figure(figsize=(12, 8))
         self.figure.canvas.mpl_connect("close_event", self.on_close)
         self.show_provide_names({})
@@ -207,6 +212,7 @@ class DataCollector:
         self.current_image_list = []
         self.current_encoding_list = []
         recent_latents = []
+        self.current_tracker.reset()
 
         while self.recording_in_progress:
 
@@ -215,6 +221,7 @@ class DataCollector:
             window.set_data(frame)
 
             latent_vector = self.image_encoder(frame)
+            self.current_tracker.update_with_single(latent_vector)
             self.current_encoding_list.append(latent_vector)
             recent_latents.append(latent_vector)
 
@@ -301,14 +308,17 @@ class DataCollector:
         self.figure.clf()
         self.set_title("Saving recording . . .")
 
-        self.current_image_list = np.stack(self.current_image_list, axis=0)
-        print("Video shape: %r." % (self.current_image_list.shape,))
+        # self.current_image_list = np.stack(self.current_image_list, axis=0)
+        # print("Video shape: %r." % (self.current_image_list.shape,))
 
         self.current_encoding_list = np.stack(self.current_encoding_list, axis=0)
         print("Latent vectors shape: %r." % (self.current_encoding_list.shape,))
 
         label = self.currently_selected_class
         self.class_latent_episodes[label].append(self.current_encoding_list)
+
+        self.class_eps_stats[label].append(self.current_tracker.copy())
+        self.current_tracker.reset()
 
         self.set_title("Saved recording.")
         self.keep_button.set_active(False)
@@ -332,7 +342,10 @@ class DataCollector:
         pos_scores_before = self.discriminator(pos_vectors)
         neg_scores_before = self.discriminator(neg_vectors)
 
-        self.discriminator.fit(pos_vectors, neg_vectors)
+        neg_stats = combine(self.class_eps_stats[LEFT])
+        pos_stats = combine(self.class_eps_stats[RIGHT])
+        self.discriminator.fit_with_moments(pos_stats, neg_stats)
+        # self.discriminator.fit(pos_vectors, neg_vectors)
 
         pos_scores_after = self.discriminator(pos_vectors)
         neg_scores_after = self.discriminator(neg_vectors)

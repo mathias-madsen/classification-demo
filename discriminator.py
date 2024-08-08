@@ -133,7 +133,6 @@ if __name__ == "__main__":
 
     from gaussians.moments_tracker import MomentsTracker, combine
 
-
     dim = 5
     size1, size2 = np.random.randint(10, 100, size=2)
     loc1, loc2 = np.random.normal(size=(2, dim), scale=5.0)
