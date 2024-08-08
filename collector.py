@@ -386,6 +386,7 @@ class DataCollector:
                 load_bar.update()
             right_crossval_accuracy = np.mean(np.concatenate(right_accuracies))
             print("RIGHT CROSSVAL ACCURACY:", right_crossval_accuracy)
+
         if len(left_stats) >= 2:
             left_accuracies = []
             for idx in range(len(left_stats)):
@@ -470,14 +471,15 @@ class DataCollector:
         size_info = "%s episodes (%s frames)" % (right_neps, right_nframes)
         text_axes.text(x=0, y=1.0, s=size_info, fontsize=18)
 
+
         information = (
             "The cross-validation accuracy is computed by leaving out parts "
             "of the data for testing while training on the rest.\n"
             "It can be computed for a class when there are at least two "
             "episodes of data for that class.\n"
             "\n"
-            "Note that the cross-validation loss may vary when there are "
-            "few episodes; it stabilizes as more data is added."
+            "Note that it is normal for the cross-validation loss to oscillate"
+            "early on; it stabilizes as more data is added."
             )
         text_axes.text(x=0, y=-1, s=information, fontsize=12, color="gray")
 
