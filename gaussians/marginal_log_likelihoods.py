@@ -13,57 +13,83 @@ def combine_stats(mean0, cov0, size0, mean1, cov1, size1):
 
 
 def correlated_loglikes(mean, cov, length, mu0, cov0, length0, df0):
-    dim, = mean.shape
     _, covN, lengthN = combine_stats(mu0, cov0, length0, mean, cov, length)
-    assert np.isclose(lengthN, length0 + length)
     dfN = df0 + length
+    _, logdetscatter0 = np.linalg.slogdet(length0 * cov0)
+    _, logdetscatterN = np.linalg.slogdet(lengthN * covN)
+    dim, = mean.shape
     return (
         + special.multigammaln((dfN + dim - 1) / 2, dim)
         - special.multigammaln((df0 + dim - 1) / 2, dim)
+        + 0.5 * dim * np.log(length0 / lengthN)
+        + 0.5 * (df0 + dim - 1) * logdetscatter0
+        - 0.5 * (dfN + dim - 1) * logdetscatterN
         - 0.5 * dim * length * np.log(np.pi)
-        + 0.5 * dim * (df0 + dim) * np.log(length0)
-        - 0.5 * dim * (dfN + dim) * np.log(lengthN)
-        + 0.5 * (df0 + dim - 1) * np.linalg.slogdet(cov0).logabsdet
-        - 0.5 * (dfN + dim - 1) * np.linalg.slogdet(covN).logabsdet
     )
 
 
 def uncorrelated_loglikes(mean, cov, length, mu0, cov0, length0, df0):
-    dim = mu0.shape[-1]
     _, covN, lengthN = combine_stats(mu0, cov0, length0, mean, cov, length)
-    assert np.isclose(lengthN, length0 + length)
     dfN = df0 + length
+    logdetscatter0 = np.log(length0 * cov0.diagonal()).sum()
+    logdetscatterN = np.log(lengthN * covN.diagonal()).sum()
+    dim = mu0.shape[-1]
     return (
         + dim * special.gammaln(dfN / 2)
         - dim * special.gammaln(df0 / 2)
+        + 0.5 * dim * np.log(length0 / lengthN)
+        + 0.5 * df0 * logdetscatter0
+        - 0.5 * dfN * logdetscatterN
         - dim * 0.5 * length * np.log(np.pi)
-        + dim * 0.5 * (df0 + 1) * np.log(length0)
-        - dim * 0.5 * (dfN + 1) * np.log(lengthN)
-        + 0.5 * df0 * np.log(cov0.diagonal()).sum()
-        - 0.5 * dfN * np.log(covN.diagonal()).sum()
     )
 
 
-def marginal_logp_shared_covariance(statsx, statsy, statsx0, statsy0, df0):
+def marginal_logp_shared_variance(statsx, statsy, statsx0, statsy0, df0):
 
     _, covx0, lengthx0 = statsx0
-    _, covy0, ky0 = statsy0
-
-    lengthx = statsx[2]
-    lengthy = statsy[2]
+    _, covy0, lengthy0 = statsy0
+    _, _, lengthx = statsx
+    _, _, lengthy = statsy
     dim, _ = covx0.shape
 
     dfNM = df0 + lengthx + lengthy
     _, covxN, lengthxN = combine_stats(*statsx, *statsx0)
     _, covyM, lengthyM = combine_stats(*statsy, *statsy0)
-    _, logdetscatter0 = np.linalg.slogdet(lengthx0*covx0 + ky0*covy0)
+    scatter0 = lengthx0*covx0 + lengthy0*covy0
+    scatterNM = lengthxN*covxN + lengthyM*covyM
+    _, logdetscatter0 = np.log(scatter0.diagonal()).sum()
+    _, logdetscatterNM = np.log(scatterNM.diagonal()).sum()
+
+    return (
+        + dim * special.multigammaln(dfNM / 2)
+        - dim * special.multigammaln(df0 / 2)
+        + 0.5 * dim * np.log(lengthx0 / lengthxN)
+        + 0.5 * dim * np.log(lengthy0 / lengthyM)
+        + 0.5 * df0 * logdetscatter0
+        - 0.5 * dfNM * logdetscatterNM
+        - 0.5 * dim * (lengthx + lengthy) * np.log(np.pi)
+        )
+
+
+def marginal_logp_shared_covariance(statsx, statsy, statsx0, statsy0, df0):
+
+    _, covx0, lengthx0 = statsx0
+    _, covy0, lengthy0 = statsy0
+    _, _, lengthx = statsx
+    _, _, lengthy = statsy
+    dim, _ = covx0.shape
+
+    dfNM = df0 + lengthx + lengthy
+    _, covxN, lengthxN = combine_stats(*statsx, *statsx0)
+    _, covyM, lengthyM = combine_stats(*statsy, *statsy0)
+    _, logdetscatter0 = np.linalg.slogdet(lengthx0*covx0 + lengthy0*covy0)
     _, logdetscatterNM = np.linalg.slogdet(lengthxN*covxN + lengthyM*covyM)
 
     return (
         + special.multigammaln((dfNM + dim - 1) / 2, dim)
         - special.multigammaln((df0 + dim - 1) / 2, dim)
         + 0.5 * dim * np.log(lengthx0 / lengthxN)
-        + 0.5 * dim * np.log(ky0 / lengthyM)
+        + 0.5 * dim * np.log(lengthy0 / lengthyM)
         + 0.5 * (df0 + dim - 1) * logdetscatter0
         - 0.5 * (dfNM + dim - 1) * logdetscatterNM
         - 0.5 * dim * (lengthx + lengthy) * np.log(np.pi)
