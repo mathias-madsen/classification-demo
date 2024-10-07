@@ -1,8 +1,8 @@
 import numpy as np
 from scipy import stats
 
-from marginal_log_likelihoods import corrrelated_loglikes
-from marginal_log_likelihoods import uncorrrelated_loglikes
+from marginal_log_likelihoods import correlated_loglikes
+from marginal_log_likelihoods import uncorrelated_loglikes
 from moments_tracker import MomentsTracker
 
 
@@ -16,8 +16,8 @@ def test_marginal_log_likelihood_formulas():
     empirical = MomentsTracker.fromdata(sample)
 
     df0 = np.random.gamma(1.0)
-    correlated = corrrelated_loglikes(*empirical, *tracker, df0)
-    uncorrelated = uncorrrelated_loglikes(*empirical, *tracker, df0)
+    correlated = correlated_loglikes(*empirical, *tracker, df0)
+    uncorrelated = uncorrelated_loglikes(*empirical, *tracker, df0)
 
     df = np.copy(df0)
     correlated_logps = []
