@@ -359,7 +359,7 @@ class DataCollector:
         print("%r count: %s" % (self.class_names[RIGHT], pos_stats.count))
         print()
 
-        self.discriminator.fit_with_moments(pos_stats, neg_stats)
+        self.discriminator.fit_with_moments(pos_stats, neg_stats, verbose=True)
         # self.discriminator.fit(pos_vectors, neg_vectors)
 
         pos_scores_after = self.discriminator(pos_vectors)

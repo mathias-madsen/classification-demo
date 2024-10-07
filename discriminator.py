@@ -2,6 +2,7 @@ import numpy as np
 from scipy.stats import multivariate_normal
 
 from gaussians.moments_tracker import MomentsTracker, combine
+from gaussians import marginal_log_likelihoods as likes
 
 
 # def biased_moments(vectors, prior_mean=None, prior_cov=None):
@@ -52,30 +53,97 @@ class BiGaussianDiscriminator:
         del negative_stats
         print("Done fitting.")
 
-    def fit_with_moments(self, positive_stats, negative_stats):
+    def fit_with_moments(self, positive_stats, negative_stats, verbose=False):
 
-        xbar = combine([positive_stats, negative_stats])
-        dim, = xbar.mean.shape
-        N = xbar.count  # N1 + N2
-        mean = xbar.mean
-        cov = xbar.cov + (dim / (dim + N))**2 * np.outer(mean, mean)
-        poolmean = N / (N + dim) * mean
-        poolcov = N / (N + dim) * cov + dim / (N + dim) * np.eye(dim)
+        dim, = positive_stats.mean.shape
 
-        N1 = positive_stats.count
-        N2 = negative_stats.count
-        mean1 = N1 / (N1 + dim) * positive_stats.mean + dim / (N1 + dim) * poolmean
-        mean2 = N2 / (N2 + dim) * negative_stats.mean + dim / (N2 + dim) * poolmean
-        del xbar
+        prior_stats = MomentsTracker(np.zeros(dim), np.eye(dim), dim)
+
+        sepvar = likes.marginal_logp_separate_variances(
+            positive_stats,
+            negative_stats,
+            prior_stats,
+            prior_stats,
+            1.0,
+        )
+
+        sharevar = likes.marginal_logp_separate_variances(
+            positive_stats,
+            negative_stats,
+            prior_stats,
+            prior_stats,
+            1.0,
+        )
+
+        sepcov = likes.marginal_logp_separate_covariances(
+            positive_stats,
+            negative_stats,
+            prior_stats,
+            prior_stats,
+            1.0,
+        )
+
+        sharecov = likes.marginal_logp_shared_covariance(
+            positive_stats,
+            negative_stats,
+            prior_stats,
+            prior_stats,
+            1.0,
+        )
+
+        winner = np.argmax([sharevar, sepvar, sharecov, sepcov])
+
+        if verbose:
+
+            print("Marginal log-likelihoods:")
+            print("-------------------------")
+            print("shared diagonal matrix:   ", sharevar)
+            print("two diagonal matrices:    ", sepvar)
+            print("shared covariance matrix: ", sharecov)
+            print("two covariance matrices:  ", sepcov)
+            print()
+
+            if winner == 0:
+                print("Best model: a shared diagonal matrix.\n")
+            elif winner == 1:
+                print("Best model: two separate diagonal matrices.\n")
+            elif winner == 2:
+                print("Best model: a shared covariance matrix.\n")
+            elif winner == 3:
+                print("Best model: two separate covariance matrices.\n")
+            else:
+                raise Exception("Unpected inddex %s" % (winner,))
+
+        combined_stats = combine([positive_stats, negative_stats])
+        posterior_shared = combine([combined_stats, prior_stats])
+        posterior_pos = combine([positive_stats, prior_stats])
+        posterior_neg = combine([negative_stats, prior_stats])
+        posmean = posterior_pos.mean
+        negmean = posterior_neg.mean
+
+        if winner == 0:
+            poscov = np.diag(posterior_shared.cov.diagonal())
+            negcov = np.diag(posterior_shared.cov.diagonal())
+        elif winner == 1:
+            poscov = np.diag(posterior_pos.cov.diagonal())
+            negcov = np.diag(posterior_neg.cov.diagonal())
+        elif winner == 2:
+            poscov = posterior_shared.cov.copy()
+            negcov = posterior_shared.cov.copy()
+        elif winner == 3:
+            poscov = posterior_pos.cov
+            negcov = posterior_neg.cov
+        else:
+            raise Exception("Unpected inddex %s" % (winner,))
 
         if self.dist_pos is not None:
-            self.dist_pos.mean[:] = mean1
-            self.dist_pos.cov[:] = poolcov
-            self.dist_neg.mean[:] = mean2
-            self.dist_neg.cov[:] = poolcov
+            self.dist_pos.mean[:] = posmean
+            self.dist_pos.cov[:] = poscov
+            self.dist_neg.mean[:] = negmean
+            self.dist_neg.cov[:] = negcov
         else:
-            self.dist_pos = multivariate_normal(mean1, poolcov)
-            self.dist_neg = multivariate_normal(mean2, poolcov)
+            self.dist_pos = multivariate_normal(posmean, poscov)
+            self.dist_neg = multivariate_normal(negmean, negcov)
 
     def __call__(self, x):
         if self.dist_pos is None:
