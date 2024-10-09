@@ -150,6 +150,29 @@ class BiGaussianDiscriminator:
             return np.zeros_like(x[..., 0])
         else:
             return self.dist_pos.logpdf(x) - self.dist_neg.logpdf(x)
+    
+    def save(self, path):
+        if self.dist_neg is None or self.dist_pos is None:
+            raise ValueError("No parameters to save")
+        dists = [self.dist_neg, self.dist_pos]  # CANONICAL ORDER
+        cluster_means = np.stack([d.mean for d in dists], axis=0)
+        cluster_covs = np.stack([d.cov for d in dists], axis=0)
+        np.savez(path, cluster_means=cluster_means, cluster_covs=cluster_covs)
+
+    def load(self, path):
+        with np.load(path) as archive:
+            cluster_means = archive["cluster_means"]
+            cluster_covs = archive["cluster_covs"]
+        # NEGATIVE is number 1 (1-based):
+        self.dist_neg = multivariate_normal(cluster_means[0], cluster_covs[0])
+        # POSITIVE is number 2 (1-based):
+        self.dist_pos = multivariate_normal(cluster_means[1], cluster_covs[1])
+
+    @classmethod
+    def fromsaved(self, path):
+        instance = BiGaussianDiscriminator()
+        instance.load(path)
+        return instance
 
 
 def test_bigaussian_discriminator():
