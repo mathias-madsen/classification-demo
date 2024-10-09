@@ -427,6 +427,7 @@ class DataCollector:
     def show_fit_results_screen(self):
 
         self.figure.clf()
+        plt.pause(0.001)
 
         right_latent = self.class_latent_episodes[RIGHT]
         right_stats = self.class_eps_stats[RIGHT]
