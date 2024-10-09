@@ -12,13 +12,31 @@ if __name__ == "__main__":
 
     plt.ion()
 
-    if True:
-        from image_encoding import encode as encode_with_resnet
-        collector = DataCollector(image_encoder=encode_with_resnet,
-                                  discriminator=BiGaussianDiscriminator(205))
-    else:
-        from pretrained import encode as encode_with_pretrained
-        collector = DataCollector(image_encoder=encode_with_pretrained,
-                                  discriminator=BiGaussianDiscriminator(1707))
+    image_source = 0
+    encoder = "resnet"
 
-    shell()
+    print("Setting up camera . . .")
+    if type(image_source) == int:
+        import cv2 as cv
+        camera = cv.VideoCapture(image_source)
+    else:
+        from ximea_camera import XimeaCamera
+        camera = XimeaCamera()
+
+    if encoder == "resnet":
+        from image_encoding import ResNet50Encoder
+        encode = ResNet50Encoder()
+    elif encoder == "local":
+        from pretrained import encode
+
+    discriminator = BiGaussianDiscriminator()
+    collector = DataCollector(
+        image_encoder=encode,
+        discriminator=discriminator,
+        camera=camera,
+        )
+
+    try:
+        shell()
+    except:
+        collector.on_close()

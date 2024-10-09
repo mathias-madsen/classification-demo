@@ -1,3 +1,6 @@
+import os
+from datetime import datetime
+from tempfile import TemporaryDirectory
 import numpy as np
 from matplotlib.patches import Rectangle
 from matplotlib import pyplot as plt
@@ -11,6 +14,42 @@ RIGHT = 1
 
 LEFT_COLOR = "orange"
 RIGHT_COLOR = "magenta"
+
+
+def invent_name():
+    """ Return a string that is part time information, part noise. """
+    head = datetime.now().strftime("%Y%m%d-%H%M%S")
+    alphabet = [chr(i) for i in range(65, 91)]
+    tail = "".join(np.random.choice(alphabet, size=6))
+    return head + "-" + tail
+
+
+class PathManager:
+
+    def __init__(self):
+        self.rootdir = TemporaryDirectory()
+        self.subdirs = {}
+        self.active_name = None
+        self.active_subdir = None
+    
+    def make_named_subdir(self, index, name):
+        subdir_path = os.path.join(self.rootdir.name, name)
+        os.makedirs(subdir_path)
+        self.subdirs[index] = subdir_path
+    
+    def set_active_name(self, index, name):
+        self.active_subdir = self.subdirs[index]
+        self.active_name = name
+    
+    def get_active_prefix(self):
+        return os.path.join(
+            self.rootdir.name,
+            self.active_subdir,
+            self.active_name,
+            )
+
+    def close(self):
+        self.rootdir.cleanup()
 
 
 class EvidenceBar(Rectangle):
@@ -31,7 +70,7 @@ class DataCollector:
 
     frames_per_update = 5
 
-    def __init__(self, image_encoder, discriminator, source=0):
+    def __init__(self, image_encoder, discriminator, camera):
         
         if not plt.isinteractive():
             raise RuntimeError("Please call plt.ion() "
@@ -46,16 +85,11 @@ class DataCollector:
         self.currently_selected_class = None
         self.recording_in_progress = False
 
-        print("Setting up camera . . .")
-        if type(source) == int:
-            import cv2 as cv
-            self.camera = cv.VideoCapture(source)
-        else:
-            from ximea_camera import XimeaCamera
-            self.camera = XimeaCamera()
+        self.camera = camera
         test_image = self.read_rgb()
-        height, width, _ = test_image.shape
-        print("Done: resolution %sx%s.\n" % (height, width))
+        self.image_height, self.image_width, _ = test_image.shape
+        print("Done: resolution %sx%s.\n" %
+              (self.image_height, self.image_width))
 
         print("Testing image encoder . . .")
         test_latent = self.image_encoder(test_image)

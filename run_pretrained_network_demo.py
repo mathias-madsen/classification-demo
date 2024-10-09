@@ -5,7 +5,7 @@ import torch
 from PIL import Image
 from matplotlib import pyplot as plt
 
-from image_encoding import preprocess, model
+from image_encoding import ResNet50Encoder
 
 
 folder = os.path.dirname(os.path.abspath(__file__))
@@ -16,17 +16,13 @@ with open(names_file, "r") as f:
 
 if __name__ == "__main__":
 
+    wrapper = ResNet50Encoder()
+
     cam = cv.VideoCapture(0)
     
     result, bgr = cam.read()
     rgb = bgr[:, :, ::-1]
-
-    input_image = Image.fromarray(rgb[:, ::-1, :])
-    input_tensor = preprocess(input_image)
-    with torch.no_grad():
-        logits, encoding = model(input_tensor.unsqueeze(0))
-        logits = logits.squeeze(0)
-        encoding = encoding.squeeze(0)
+    logits, encoding = wrapper(rgb, return_logits=True)
 
     plt.ion()
 
@@ -34,7 +30,7 @@ if __name__ == "__main__":
                                          ncols=2,
                                          width_ratios=(5, 1))
 
-    cam_display = left.imshow(bgr[:, ::-1, ::-1])
+    cam_display = left.imshow(rgb[:, ::-1, :])
     left.axis("off")
 
     dot_plot, = right.plot([], [], ".")
@@ -49,20 +45,17 @@ if __name__ == "__main__":
 
         result, bgr = cam.read()
         rgb = bgr[:, :, ::-1]
-
-        input_image = Image.fromarray(rgb[:, ::-1, :])
-        input_tensor = preprocess(input_image)
-        with torch.no_grad():
-            logits, encoding = model(input_tensor.unsqueeze(0))
-            logits = logits.squeeze(0)
-            encoding = encoding.squeeze(0)
-        decreasing = torch.argsort(logits, descending=True)
-        probs = torch.softmax(logits, -1)
+        logits, encoding = wrapper(rgb, return_logits=True)
+        increasing = np.argsort(logits)
+        decreasing = increasing[::-1]
+        logits -= logits.max()
+        probs = np.exp(logits)
+        probs -= probs.sum()
         winners = [IMAGENET_CLASS_NAMES[i] for i in decreasing[:3]]
         winning_probs = [float(probs[i]) for i in decreasing[:3]]
-        print(dict(zip(winners, winning_probs)))
+        print({k: "%.5f" % v for k, v in zip(winners, winning_probs)})
 
-        cam_display.set_data(bgr[:, ::-1, ::-1])
+        cam_display.set_data(rgb[:, ::-1, :])
         dot_plot.set_data(encoding, range(len(encoding)))
 
         title = ", ".join("%r: %.1f pct" % (name, 100 * prob)
