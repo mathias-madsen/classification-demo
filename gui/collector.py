@@ -33,6 +33,41 @@ class EvidenceBar(Rectangle):
         self.set_color(LEFT_COLOR if value < 0 else RIGHT_COLOR)
 
 
+
+class LoadBar:
+
+    def __init__(self, figure, header, total):
+        self.total = total
+        self.num_done = 0
+        self.axes = figure.add_axes(111)
+        self.axes.axis("off")
+        self.axes.text(
+            x=0.5,
+            y=0.6,
+            s=header,
+            ha="center",
+            fontweight="bold",
+            fontsize=36,
+            )
+        self.ticker = self.axes.text(
+            x=0.5,
+            y=0.4,
+            s=(" " * total),
+            family="Courier New",
+            ha="center",
+            fontweight="bold",
+            fontsize=36,
+            )
+        plt.pause(0.001)
+
+    def update(self):
+        self.num_done += 1
+        bar = "█" * self.num_done
+        fill = " " * (self.total - self.num_done)
+        self.ticker.set_text(bar + fill)
+        plt.pause(0.001)
+
+
 class DataCollector:
 
     frames_per_update = 5
@@ -366,6 +401,12 @@ class DataCollector:
         right_crossval_accuracy = None
         left_crossval_accuracy = None
 
+        # count the number of cross-validating steps:
+        num_right = 0 if len(right_stats) < 2 else len(right_stats)
+        num_left = 0 if len(left_stats) < 2 else len(left_stats)
+        num_total = num_right + num_left
+        load_bar = LoadBar(self.figure, "Cross-validating . . .", num_total)
+
         if len(right_stats) >= 2:
             right_accuracies = []
             for idx in range(len(right_stats)):
@@ -376,6 +417,7 @@ class DataCollector:
                 test_right = right_latent[idx]
                 logits = self.discriminator(test_right)
                 right_accuracies.append(logits > 1e-5)
+                load_bar.update()
             right_crossval_accuracy = np.mean(np.concatenate(right_accuracies))
             print("RIGHT CROSSVAL ACCURACY:", right_crossval_accuracy)
         if len(left_stats) >= 2:
@@ -388,6 +430,7 @@ class DataCollector:
                 test_left = left_latent[idx]
                 logits = self.discriminator(test_left)
                 left_accuracies.append(logits < -1e-5)
+                load_bar.update()
             left_crossval_accuracy = np.mean(np.concatenate(left_accuracies))
             print("LEFT CROSSVAL ACCURACY:", left_crossval_accuracy)
 
