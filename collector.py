@@ -374,6 +374,9 @@ class DataCollector:
         self.figure.clf()
         self.set_title("Saving recording . . .")
 
+        stats_path = self.path_manager.get_active_prefix() + ".npz"
+        self.current_tracker.save(stats_path)
+
         # self.current_image_list = np.stack(self.current_image_list, axis=0)
         # print("Video shape: %r." % (self.current_image_list.shape,))
 
