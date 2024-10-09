@@ -36,22 +36,14 @@ class EvidenceBar(Rectangle):
 
 class LoadBar:
 
-    def __init__(self, figure, header, total):
+    def __init__(self, figure, total):
         self.total = total
         self.num_done = 0
         self.axes = figure.add_axes(111)
         self.axes.axis("off")
-        self.axes.text(
-            x=0.5,
-            y=0.6,
-            s=header,
-            ha="center",
-            fontweight="bold",
-            fontsize=36,
-            )
         self.ticker = self.axes.text(
             x=0.5,
-            y=0.4,
+            y=0.5,
             s=(" " * total),
             family="Courier New",
             ha="center",
@@ -63,7 +55,7 @@ class LoadBar:
     def update(self):
         self.num_done += 1
         bar = "█" * self.num_done
-        fill = " " * (self.total - self.num_done)
+        fill = "░" * (self.total - self.num_done)
         self.ticker.set_text(bar + fill)
         plt.pause(0.001)
 
@@ -405,7 +397,7 @@ class DataCollector:
         num_right = 0 if len(right_stats) < 2 else len(right_stats)
         num_left = 0 if len(left_stats) < 2 else len(left_stats)
         num_total = num_right + num_left
-        load_bar = LoadBar(self.figure, "Cross-validating . . .", num_total)
+        load_bar = LoadBar(self.figure, num_total)
 
         if len(right_stats) >= 2:
             right_accuracies = []
