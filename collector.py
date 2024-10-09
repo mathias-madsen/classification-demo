@@ -1,4 +1,6 @@
 import os
+import re
+import cv2 as cv
 from datetime import datetime
 from tempfile import TemporaryDirectory
 import numpy as np
@@ -96,6 +98,10 @@ class DataCollector:
         self.latent_dim, = dim, = test_latent.shape
         print("Latent space dimensionality: %s.\n" % (self.latent_dim,))
 
+        print("Creating experiment folder . . .")
+        self.path_manager = PathManager()
+        print("Created %r.\n" % (self.path_manager.rootdir.name,))
+
         self.current_tracker = MomentsTracker(np.zeros(dim), np.eye(dim), 0)
         self.class_eps_stats = {LEFT: [], RIGHT: []}
 
@@ -104,6 +110,7 @@ class DataCollector:
         self.show_provide_names({})
 
     def on_close(self, event):
+        self.path_manager.close()
         print("The figure was closed.\n\n")
 
     def show_provide_names(self, event):
@@ -139,9 +146,14 @@ class DataCollector:
 
     def store_name_pos_and_continue(self, text):
         self.class_names[RIGHT] = text.upper()
+        # If both text fields have content and the user clicked SUBMIT,
+        # we are ready to continue, using the field contents as names:
         if all(self.class_names.values()):
             self.top_box.set_active(False)
             self.bot_box.set_active(False)
+            self.datadirs = {}
+            for idx, name in self.class_names.items():
+                self.path_manager.make_named_subdir(idx, name)
             self.show_ready_to_record({})
 
     def set_title(self, string, color="black", print_too=True):
@@ -254,11 +266,22 @@ class DataCollector:
         recent_latents = []
         self.current_tracker.reset()
 
+        self.path_manager.set_active_name(idx, invent_name())
+        video_path = self.path_manager.get_active_prefix() + ".avi"
+
+        self.video_writer = cv.VideoWriter(
+            filename=video_path,
+            fourcc=cv.VideoWriter_fourcc(*"MJPG"),
+            fps=16,
+            frameSize=(self.image_width, self.image_height),
+            )
+
         while self.recording_in_progress:
 
             frame = self.read_rgb()
             self.current_image_list.append(frame)
             window.set_data(frame)
+            self.video_writer.write(frame[:, :, ::-1])  # write BGR to .avi
 
             latent_vector = self.image_encoder(frame)
             self.current_tracker.update_with_single(latent_vector)
@@ -285,6 +308,7 @@ class DataCollector:
     def stop_recording(self, mouse_event):
 
         print("Stopped recording.\n")
+        self.video_writer.release()
         self.recording_in_progress = False
         self.stop_button.set_active(False)
         self.show_rate_recording_screen()
@@ -458,6 +482,8 @@ class DataCollector:
 
     def discard_recording(self, mouse_event):
         self.figure.clf()
+        self.video_writer.release()
+        os.remove(self.path_manager.get_active_prefix() + ".avi")
         self.set_title("Discarded recording.")
         self.keep_button.set_active(False)
         self.discard_button.set_active(False)
