@@ -111,4 +111,15 @@ class MomentsTracker:
         self.mean *= 0
         self.cov[:, :] = np.eye(self.cov.shape[1])
         self.count *= 0
+    
+    def save(self, path):
+        np.savez(path, mean=self.mean, cov=self.cov, count=self.count)
+    
+    @classmethod
+    def fromfile(self, path):
+        with np.load(path) as archive:
+            mean = archive["mean"]
+            cov = archive["cov"]
+            count = archive["count"]
+            return MomentsTracker(mean, cov, count)
 

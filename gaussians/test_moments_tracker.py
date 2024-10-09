@@ -1,3 +1,5 @@
+import os
+from tempfile import TemporaryDirectory
 import numpy as np
 
 from gaussians.moments_tracker import MomentsTracker, combine, mixed_covariance
@@ -186,6 +188,18 @@ def test_mixed_covariance():
     assert np.allclose(mixed_cov, total_cov)
 
 
+def test_moments_tracker_saving_and_loading():
+    x = np.random.normal(size=(7, 3))
+    original = MomentsTracker.fromdata(x)
+    with TemporaryDirectory() as tempdir:
+        outpath = os.path.join(tempdir, "stats.npz")
+        original.save(outpath)
+        restored = MomentsTracker.fromfile(outpath)
+    assert np.allclose(restored.mean, np.mean(x, axis=0))
+    assert np.allclose(restored.cov, np.cov(x.T, ddof=0))
+    assert np.isclose(restored.count, len(x))
+
+
 if __name__ == "__main__":
 
     test_combine_moment_trackers()
@@ -194,3 +208,5 @@ if __name__ == "__main__":
     test_moments_tracker_reset()
     test_moments_tracker_update_with_moments()
     test_mixed_covariance()
+    test_moments_tracker_saving_and_loading()
+
