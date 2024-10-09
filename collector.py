@@ -31,23 +31,23 @@ class PathManager:
     def __init__(self):
         self.rootdir = TemporaryDirectory()
         self.subdirs = {}
-        self.active_name = None
+        self.active_episode_name = None
         self.active_subdir = None
     
-    def make_named_subdir(self, index, name):
-        subdir_path = os.path.join(self.rootdir.name, name)
+    def make_named_subdir(self, index, class_name):
+        subdir_path = os.path.join(self.rootdir.name, class_name)
         os.makedirs(subdir_path)
         self.subdirs[index] = subdir_path
     
-    def set_active_name(self, index, name):
+    def set_active_episode_name(self, index, episode_name):
         self.active_subdir = self.subdirs[index]
-        self.active_name = name
+        self.active_episode_name = episode_name
     
     def get_active_prefix(self):
         return os.path.join(
             self.rootdir.name,
             self.active_subdir,
-            self.active_name,
+            self.active_episode_name,
             )
 
     def close(self):
@@ -154,7 +154,15 @@ class DataCollector:
             self.datadirs = {}
             for idx, name in self.class_names.items():
                 self.path_manager.make_named_subdir(idx, name)
+            self.save_class_names_to_file()
             self.show_ready_to_record({})
+
+    def save_class_names_to_file(self):
+        folder = self.path_manager.rootdir.name
+        outpath = os.path.join(folder, "class_indices_and_names.csv")
+        with open(outpath, "wt") as target:
+            for (k, v) in self.class_names.items():
+                target.write("%s,%s\n" % (k, v))
 
     def set_title(self, string, color="black", print_too=True):
         if print_too:
@@ -266,7 +274,7 @@ class DataCollector:
         recent_latents = []
         self.current_tracker.reset()
 
-        self.path_manager.set_active_name(idx, invent_name())
+        self.path_manager.set_active_episode_name(idx, invent_name())
         video_path = self.path_manager.get_active_prefix() + ".avi"
 
         self.video_writer = cv.VideoWriter(
@@ -479,6 +487,9 @@ class DataCollector:
 
         all_scores = np.concatenate([pos_scores_after, neg_scores_after])
         self.maxval = 1.5 * np.max(np.abs(all_scores))
+
+        outpath = os.path.join(self.path_manager.rootdir.name, "params.npz")
+        self.discriminator.save(outpath)
 
         self.figure.tight_layout()
         plt.pause(0.001)
