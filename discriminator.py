@@ -116,10 +116,10 @@ class BiGaussianDiscriminator:
                                    self.dist_neg.entropy())
 
     def __call__(self, x):
-        pos = self.dist_neg.logpdf(x)
-        neg = self.dist_pos.logpdf(x)
+        neg = self.dist_neg.logpdf(x)
+        pos = self.dist_pos.logpdf(x)
         neither = -3 * self.largest_entropy * np.ones_like(pos)
-        logprobs = np.array([neither, pos, neg])
+        logprobs = np.array([neither, neg, pos])
         logprobs -= np.max(logprobs)
         logsumexp = np.log(np.sum(np.exp(logprobs)))
         return logprobs - logsumexp
