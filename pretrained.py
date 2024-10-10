@@ -46,40 +46,32 @@ def build_feed(image):
 
 class OnnxModel(InferenceSession):
     
-    def __init__(self, path):
+    def __init__(self, path="model.onnx", downsampling_factor=3):
         super().__init__(path, providers=['CPUExecutionProvider'])
         self.output_nodes = self.get_outputs()
         self.full_output_names = [n.name for n in self.output_nodes]
         self.short_output_names = [shorten(n) for n in self.full_output_names]
+        self.downsampling_factor = downsampling_factor
 
     def compute_output_dict(self, image):
         output_list = self.run(self.full_output_names, build_feed(image))
         return {k: v[0] for k, v in zip(self.short_output_names, output_list)}
 
-    def compute_feature_vector(self, image):
-        output_dict = self.compute_output_dict(image)
+    def __call__(self, uint8_rgb_image):
+        output_dict = self.compute_output_dict(uint8_rgb_image)
         keys = [
             'Eyx1', 'Varsyx1', 'Covyx1',
             'Eyx2', 'Varsyx2', 'Covyx2',
             ]
         all_features = np.concatenate([output_dict[k].flatten() for k in keys])
-        return all_features[::3]
-        # return all_features
-
-
-path = "model.onnx"
-session = OnnxModel(path)
-
-
-def encode(uint8_rgb_image):
-    """ Compute a latent vector for a raw RGB image. """
-    return session.compute_feature_vector(uint8_rgb_image)
-
-
+        return all_features[::self.downsampling_factor]
+    
 if __name__ == "__main__":
+
+    model = OnnxModel()
 
     from scipy.misc import face
     raccoon = face()
     image = raccoon[:256, :320, :]
-    features = encode(image)
+    features = model(image)
     print(features.shape)  # (5120,)

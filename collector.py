@@ -102,6 +102,13 @@ class DataCollector:
         self.path_manager = PathManager()
         print("Created %r.\n" % (self.path_manager.rootdir.name,))
 
+        mpath = os.path.join(self.path_manager.rootdir.name, "model_info.csv")
+        with open(mpath, "wt") as target:
+            target.write("model_class,%s\n" %
+                         self.image_encoder.__class__.__name__)
+            target.write("downsampling_factor,%s\n" %
+                         self.image_encoder.downsampling_factor)
+
         self.current_tracker = MomentsTracker(np.zeros(dim), np.eye(dim), 0)
         self.class_eps_stats = {LEFT: [], RIGHT: []}
 

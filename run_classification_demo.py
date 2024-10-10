@@ -34,14 +34,17 @@ if __name__ == "__main__":
 
     if args.model == "resnet":
         from image_encoding import ResNet50Encoder
-        encode = ResNet50Encoder(downsampling_factor=args.downsampling)
+        encoder = ResNet50Encoder(downsampling_factor=args.downsampling)
     elif args.model == "local":
-        from pretrained import encode
+        from pretrained import OnnxModel
+        encoder = OnnxModel(downsampling_factor=args.downsampling)
     else:
         raise ValueError("Unrecognized model option %r" % (args.model,))
 
+    print("Encoder: %r\n" % encoder.__class__.__name__)
+
     collector = DataCollector(
-        image_encoder=encode,
+        image_encoder=encoder,
         discriminator=BiGaussianDiscriminator(),
         camera=camera,
         )
