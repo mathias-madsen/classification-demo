@@ -4,7 +4,6 @@ import cv2 as cv
 import torch
 from PIL import Image
 from matplotlib import pyplot as plt
-
 from image_encoding import ResNet50Encoder
 
 
@@ -17,7 +16,6 @@ with open(names_file, "r") as f:
 if __name__ == "__main__":
 
     wrapper = ResNet50Encoder()
-
     cam = cv.VideoCapture(0)
     
     result, bgr = cam.read()
@@ -41,16 +39,19 @@ if __name__ == "__main__":
 
     figure.tight_layout()
 
+    all_encodings = []
+
     while plt.fignum_exists(figure.number):
 
         result, bgr = cam.read()
         rgb = bgr[:, :, ::-1]
         logits, encoding = wrapper(rgb, return_logits=True)
+        all_encodings.append(encoding)
         increasing = np.argsort(logits)
         decreasing = increasing[::-1]
         logits -= logits.max()
         probs = np.exp(logits)
-        probs -= probs.sum()
+        probs /= probs.sum()
         winners = [IMAGENET_CLASS_NAMES[i] for i in decreasing[:3]]
         winning_probs = [float(probs[i]) for i in decreasing[:3]]
         print({k: "%.5f" % v for k, v in zip(winners, winning_probs)})
@@ -63,3 +64,11 @@ if __name__ == "__main__":
         figure.suptitle(title, fontsize=24)
 
         plt.pause(1 / 12)
+
+    means = np.mean(all_encodings, axis=0)
+    stds = np.std(all_encodings, axis=0)
+
+    print("Encoding dimensionality: %s" % len(means))
+    print("encoding means 90 pct range: %s" % np.percentile(means, [5, 95]))
+    print("encoding stds 90 pct range: %s" % np.percentile(stds, [5, 95]))
+    print()
