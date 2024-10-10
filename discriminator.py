@@ -43,12 +43,12 @@ class BiGaussianDiscriminator:
             self.dist_pos = None
             self.dist_neg = None
     
-    def fit(self, positive_examples, negative_examples):
+    def fit(self, positive_examples, negative_examples, verbose=False):
         
         print("Fitting . . .")
         positive_stats = MomentsTracker.fromdata(positive_examples)
         negative_stats = MomentsTracker.fromdata(negative_examples)
-        self.fit_with_moments(positive_stats, negative_stats)
+        self.fit_with_moments(positive_stats, negative_stats, verbose=verbose)
         del positive_stats
         del negative_stats
         print("Done fitting.")
@@ -57,7 +57,8 @@ class BiGaussianDiscriminator:
 
         dim, = positive_stats.mean.shape
 
-        prior_stats = MomentsTracker(np.zeros(dim), np.eye(dim), dim)
+        # prior_stats = MomentsTracker(np.zeros(dim), np.eye(dim), dim)
+        prior_stats = MomentsTracker(np.zeros(dim), np.eye(dim), 1.0)
 
         sepvar = likes.marginal_logp_separate_variances(
             positive_stats,

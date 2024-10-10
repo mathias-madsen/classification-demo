@@ -3,6 +3,16 @@ from scipy.ndimage import zoom
 from onnxruntime import InferenceSession
 
 
+DEFAULT_KEYS = [
+    'Eyx1',
+    # 'Varsyx1',
+    # 'Covyx1',
+    # 'Eyx2',
+    # 'Varsyx2',
+    # 'Covyx2',
+    ]
+
+
 def crop_to_aspect_ratio(image, width_to_height=320/256):
     height, width, _ = image.shape
     if width/height > width_to_height:
@@ -40,18 +50,23 @@ def build_feed(image):
     cropped = crop_to_aspect_ratio(image)
     resized = zoom_to_size(cropped)
     onebatch = resized[None,]
-    return {"vision1": onebatch,
-            "vision2": onebatch[:, ::-1, ::-1, :]}
+    return {"vision1": onebatch, "vision2": onebatch}
 
 
 class OnnxModel(InferenceSession):
     
-    def __init__(self, path="model.onnx", downsampling_factor=3):
+    def __init__(self, path="model.onnx", downsampling_factor=3, keys=DEFAULT_KEYS):
         super().__init__(path, providers=['CPUExecutionProvider'])
+        self.path = path
+        self.keys = keys
         self.output_nodes = self.get_outputs()
         self.full_output_names = [n.name for n in self.output_nodes]
         self.short_output_names = [shorten(n) for n in self.full_output_names]
         self.downsampling_factor = downsampling_factor
+
+    def __repr__(self):
+        return ("OnnxModel(%r, downsampling_factor=%s, keys=%r)" %
+                (self.path, self.downsampling_factor, self.keys))
 
     def compute_output_dict(self, image):
         output_list = self.run(self.full_output_names, build_feed(image))
@@ -59,13 +74,10 @@ class OnnxModel(InferenceSession):
 
     def __call__(self, uint8_rgb_image):
         output_dict = self.compute_output_dict(uint8_rgb_image)
-        keys = [
-            'Eyx1', 'Varsyx1', 'Covyx1',
-            'Eyx2', 'Varsyx2', 'Covyx2',
-            ]
-        all_features = np.concatenate([output_dict[k].flatten() for k in keys])
+        all_features = np.concatenate([output_dict[k].flatten() for k in self.keys])
         return all_features[::self.downsampling_factor]
-    
+
+
 if __name__ == "__main__":
 
     model = OnnxModel()

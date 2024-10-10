@@ -41,7 +41,7 @@ if __name__ == "__main__":
     else:
         raise ValueError("Unrecognized model option %r" % (args.model,))
 
-    print("Encoder: %r\n" % encoder.__class__.__name__)
+    print("Encoder: %r\n" % encoder)
 
     collector = DataCollector(
         image_encoder=encoder,

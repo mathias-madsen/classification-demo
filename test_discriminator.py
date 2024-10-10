@@ -50,9 +50,26 @@ def test_that_discriminator_correctly_distinguishes_separable_classes():
     assert true_neg_rate > 0.99
 
 
+def test_equivalence_of_fitting_methods():
+    length1, length2 = np.random.randint(1000, 2000, size=2)
+    pos_data = np.random.normal(size=(length1, 2)) + 5.0
+    neg_data = np.random.normal(size=(length2, 2)) - 5.0
+    data_fitted = BiGaussianDiscriminator()
+    data_fitted.fit(pos_data, neg_data)
+    pos_stats = MomentsTracker.fromdata(pos_data)
+    neg_stats = MomentsTracker.fromdata(neg_data)
+    moments_fitted = BiGaussianDiscriminator()
+    moments_fitted.fit_with_moments(pos_stats, neg_stats)
+    assert np.allclose(data_fitted.dist_pos.mean, moments_fitted.dist_pos.mean)
+    assert np.allclose(data_fitted.dist_pos.cov, moments_fitted.dist_pos.cov)
+    assert np.allclose(data_fitted.dist_neg.mean, moments_fitted.dist_neg.mean)
+    assert np.allclose(data_fitted.dist_neg.cov, moments_fitted.dist_neg.cov)
+
+
+
 if __name__ == "__main__":
 
     test_saving_and_loading_of_discriminator()
     test_saving_and_restoring_of_discriminator()
     test_that_discriminator_correctly_distinguishes_separable_classes()
-
+    test_equivalence_of_fitting_methods()

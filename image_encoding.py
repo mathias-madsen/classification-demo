@@ -18,6 +18,8 @@ class ResNet50Encoder:
 
     def __init__(self, downsampling_factor=10):
 
+        self.downsampling_factor = downsampling_factor
+
         # weights = torchvision.models.resnet.ResNet18_Weights.DEFAULT
         weights = torchvision.models.resnet.ResNet50_Weights.DEFAULT
         self.model = torchvision.models.resnet50(weights=weights)
@@ -36,9 +38,13 @@ class ResNet50Encoder:
             x = torch.flatten(x, 1)
             logits = self.model.fc(x)
             latent = torch.log(1e-5 + x)
-            return logits, latent[..., ::downsampling_factor]
+            return logits, latent
 
         self.model._forward_impl = _forward_impl
+
+    def __repr__(self):
+        return ("ResNet50Encoder(downsampling_factor=%s)" %
+                self.downsampling_factor)
 
     def __call__(self, uint8_rgb_image, return_logits=False):
         """ Compute a latent vector for a raw RGB image. """
@@ -50,6 +56,7 @@ class ResNet50Encoder:
             logits, encoding = self.model(input_tensor.unsqueeze(0))
             logits = logits.squeeze(0).numpy()
             encoding = encoding.squeeze(0).numpy()
+            encoding = encoding[::self.downsampling_factor]
             if return_logits:
                 return logits, encoding
             else:

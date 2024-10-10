@@ -3,6 +3,7 @@ import re
 import cv2 as cv
 from datetime import datetime
 from tempfile import TemporaryDirectory
+import json
 import numpy as np
 from matplotlib.patches import Rectangle
 from matplotlib import pyplot as plt
@@ -102,12 +103,15 @@ class DataCollector:
         self.path_manager = PathManager()
         print("Created %r.\n" % (self.path_manager.rootdir.name,))
 
-        mpath = os.path.join(self.path_manager.rootdir.name, "model_info.csv")
-        with open(mpath, "wt") as target:
-            target.write("model_class,%s\n" %
-                         self.image_encoder.__class__.__name__)
-            target.write("downsampling_factor,%s\n" %
-                         self.image_encoder.downsampling_factor)
+        jpath = os.path.join(self.path_manager.rootdir.name, "model_info.json")
+        jdata = {
+            "class": self.image_encoder.__class__.__name__,
+            "downsampling_factor": self.image_encoder.downsampling_factor,
+            }
+        if hasattr(self.image_encoder, "keys"):
+            jdata["keys"] = self.image_encoder.keys
+        with open(jpath, "wt") as target:
+            json.dump(jdata, target, indent=4)
 
         self.current_tracker = MomentsTracker(np.zeros(dim), np.eye(dim), 0)
         self.class_eps_stats = {LEFT: [], RIGHT: []}
@@ -429,14 +433,7 @@ class DataCollector:
         pos_scores_before = self.discriminator(pos_vectors)
         neg_scores_before = self.discriminator(neg_vectors)
 
-        neg_stats = combine(self.class_eps_stats[LEFT])
-        print("%r count: %s" % (self.class_names[LEFT], neg_stats.count))
-        pos_stats = combine(self.class_eps_stats[RIGHT])
-        print("%r count: %s" % (self.class_names[RIGHT], pos_stats.count))
-        print()
-
-        self.discriminator.fit_with_moments(pos_stats, neg_stats, verbose=True)
-        # self.discriminator.fit(pos_vectors, neg_vectors)
+        self.discriminator.fit(pos_vectors, neg_vectors, verbose=True)
 
         pos_scores_after = self.discriminator(pos_vectors)
         neg_scores_after = self.discriminator(neg_vectors)
