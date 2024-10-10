@@ -5,34 +5,6 @@ from gaussians.moments_tracker import MomentsTracker, combine
 from gaussians import marginal_log_likelihoods as likes
 
 
-# def biased_moments(vectors, prior_mean=None, prior_cov=None):
-#     """ Conservative estimates of mean vector and covariance matrix. """
-
-#     assert not np.any(np.isnan(vectors))
-#     assert not np.any(np.isinf(vectors))
-
-#     length, dim = vectors.shape
-#     data_weight = length / (length + dim)
-
-#     if prior_mean is None:
-#         prior_mean = np.zeros(dim)
-    
-#     if prior_cov is None:
-#         prior_cov = np.eye(dim)
-
-#     empirical_mean = np.mean(vectors, axis=0)
-#     biased_mean = (1 - data_weight)*prior_mean + data_weight*empirical_mean
-
-#     devs = vectors - biased_mean
-#     empirical_cov = devs.T @ devs / len(devs)
-#     biased_cov = (1 - data_weight)*prior_cov + data_weight*empirical_cov
-
-#     assert not np.any(np.isnan(biased_mean))
-#     assert not np.any(np.isnan(biased_cov))
-
-#     return biased_mean, biased_cov
-
-
 class BiGaussianDiscriminator:
 
     def __init__(self, dim=None):
