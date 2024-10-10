@@ -35,6 +35,7 @@ def test_saving_and_restoring_of_discriminator():
     assert np.allclose(restored.dist_neg.mean, original.dist_neg.mean)
     assert np.allclose(restored.dist_neg.cov, original.dist_neg.cov)
 
+
 def test_that_discriminator_correctly_distinguishes_separable_classes():
     length1, length2 = np.random.randint(1000, 2000, size=2)
     pos_data = np.random.normal(size=(length1, 2)) + 5.0
