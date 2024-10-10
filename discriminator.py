@@ -17,13 +17,11 @@ class BiGaussianDiscriminator:
     
     def fit(self, positive_examples, negative_examples, verbose=False):
         
-        print("Fitting . . .")
         positive_stats = MomentsTracker.fromdata(positive_examples)
         negative_stats = MomentsTracker.fromdata(negative_examples)
         self.fit_with_moments(positive_stats, negative_stats, verbose=verbose)
         del positive_stats
         del negative_stats
-        print("Done fitting.")
 
     def fit_with_moments(self, positive_stats, negative_stats, verbose=False):
 
