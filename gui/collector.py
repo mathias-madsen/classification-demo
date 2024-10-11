@@ -425,6 +425,8 @@ class DataCollector:
                 load_bar.update()
             left_crossval_accuracy = np.mean(np.concatenate(left_accuracies))
             print("LEFT CROSSVAL ACCURACY:", left_crossval_accuracy)
+        if len(right_stats) >= 2 or len(left_stats) >= 2:
+            print("")
 
         neg = combine(self.dataset.class_episode_stats[LEFT])
         pos = combine(self.dataset.class_episode_stats[RIGHT])
@@ -434,14 +436,16 @@ class DataCollector:
         self.discriminator.save(outpath)
 
         # FYI, the training accuracy:
+
         test_right = np.concatenate(self.dataset.class_episode_codes[RIGHT], axis=0)
-        test_left = np.concatenate(self.dataset.class_episode_codes[LEFT], axis=0)
         accuracy_right = np.mean(self.discriminator(test_right) > 1e-5)
         print("Training accuracy %r: %.5f" %
-              (self.class_names[RIGHT], accuracy_right))
+              (self.dataset.class_names[RIGHT], accuracy_right))
+
+        test_left = np.concatenate(self.dataset.class_episode_codes[LEFT], axis=0)
         accuracy_left = np.mean(self.discriminator(test_left) < -1e-5)
         print("Training accuracy %r: %.5f" %
-              (self.class_names[LEFT], accuracy_left))
+              (self.dataset.class_names[LEFT], accuracy_left))
         print()
 
         left_neps = len(self.dataset.class_episode_stats[LEFT])
@@ -503,7 +507,6 @@ class DataCollector:
             "few episodes; it stabilizes as more data is added."
             )
         text_axes.text(x=0, y=-1, s=information, fontsize=12, color="gray")
-
 
         text_axes.set_ylim(-2, 5)
         text_axes.axis("off")
