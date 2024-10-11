@@ -437,9 +437,11 @@ class DataCollector:
         test_right = np.concatenate(self.dataset.class_episode_codes[RIGHT], axis=0)
         test_left = np.concatenate(self.dataset.class_episode_codes[LEFT], axis=0)
         accuracy_right = np.mean(self.discriminator(test_right) > 1e-5)
-        print("Training accuracy right:", accuracy_right)
+        print("Training accuracy %r: %.5f" %
+              (self.class_names[RIGHT], accuracy_right))
         accuracy_left = np.mean(self.discriminator(test_left) < -1e-5)
-        print("Training accuracy right:", accuracy_left)
+        print("Training accuracy %r: %.5f" %
+              (self.class_names[LEFT], accuracy_left))
         print()
 
         left_neps = len(self.dataset.class_episode_stats[LEFT])
