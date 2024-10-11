@@ -9,7 +9,7 @@ from gaussians import marginal_log_likelihoods as likes
 class BiGaussianDiscriminator:
 
     def __init__(self, dim=None):
-        self.largest_entropy = -300.0
+
         if dim is not None:
             self.dist_pos = multivariate_normal(np.zeros(dim), np.eye(dim))
             self.dist_neg = multivariate_normal(np.zeros(dim), np.eye(dim))
@@ -112,13 +112,17 @@ class BiGaussianDiscriminator:
         del self.dist_neg
         self.dist_pos = multivariate_normal(posmean, poscov)
         self.dist_neg = multivariate_normal(negmean, negcov)
-        self.largest_entropy = max(self.dist_pos.entropy(),
-                                   self.dist_neg.entropy())
+
+    def smallest_expected_logprob(self):
+        typical_pos_logprob = -self.dist_pos.entropy()
+        typical_neg_logprob = -self.dist_neg.entropy()
+        return min(typical_pos_logprob, typical_neg_logprob)
 
     def __call__(self, x):
-        neg = self.dist_neg.logpdf(x)
-        pos = self.dist_pos.logpdf(x)
-        neither = -3 * self.largest_entropy * np.ones_like(pos)
+        pos = self.dist_neg.logpdf(x)
+        neg = self.dist_pos.logpdf(x)
+        neither_logprob = self.smallest_expected_logprob() - 10.0
+        neither = neither_logprob * np.ones_like(pos)
         logprobs = np.array([neither, neg, pos])
         logprobs -= np.max(logprobs)
         logsumexp = np.log(np.sum(np.exp(logprobs)))
