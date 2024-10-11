@@ -13,7 +13,7 @@ if __name__ == "__main__":
     str_or_int = lambda x: int(x) if x.isnumeric() else x
     parser.add_argument("--camera", type=str_or_int, default=0)
     parser.add_argument("--model", type=str, default="resnet")
-    parser.add_argument("--downsampling", type=int, default=10)
+    parser.add_argument("--downsampling", type=int, default=5)
 
     args, _ = parser.parse_known_args()
 
