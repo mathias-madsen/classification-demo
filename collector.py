@@ -1,7 +1,6 @@
 import os
 import numpy as np
 from time import perf_counter
-from matplotlib.patches import Rectangle
 from matplotlib import pyplot as plt
 from matplotlib.widgets import Button, TextBox
 
@@ -13,14 +12,6 @@ RIGHT = 1  # right and 1 is 'positive'
 
 LEFT_COLOR = "orange"
 RIGHT_COLOR = "magenta"
-
-
-def invent_name():
-    """ Return a string that is part time information, part noise. """
-    head = datetime.now().strftime("%Y%m%d-%H%M%S")
-    alphabet = [chr(i) for i in range(65, 91)]
-    tail = "".join(np.random.choice(alphabet, size=6))
-    return head + "-" + tail
 
 
 class EvidencePlot:
