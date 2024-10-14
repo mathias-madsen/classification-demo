@@ -2,7 +2,6 @@ import os
 import re
 import cv2 as cv
 from datetime import datetime
-from tempfile import TemporaryDirectory
 import json
 import numpy as np
 from matplotlib.patches import Rectangle
