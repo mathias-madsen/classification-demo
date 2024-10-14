@@ -8,7 +8,7 @@ from matplotlib.patches import Rectangle
 from matplotlib import pyplot as plt
 from matplotlib.widgets import Button, TextBox
 
-from gaussians.moments_tracker import MomentsTracker
+from gaussians.moments_tracker import MomentsTracker, combine
 
 
 LEFT = 0
@@ -388,6 +388,12 @@ class DataCollector:
 
         self.class_eps_stats[label].append(self.current_tracker.copy())
         self.current_tracker.reset()
+
+        for idx, trackerslist in self.class_eps_stats.items():
+            if trackerslist:
+                outpath = os.path.join(self.rootdir, "grand_stats_%s.npz" % idx)
+                combined = combine(trackerslist)
+                combined.save(outpath)
 
         self.set_title("Saved recording.\n")
 
