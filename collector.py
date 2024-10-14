@@ -27,34 +27,6 @@ def invent_name():
     return head + "-" + tail
 
 
-class PathManager:
-
-    def __init__(self):
-        self.rootdir = TemporaryDirectory()
-        self.subdirs = {}
-        self.active_episode_name = None
-        self.active_subdir = None
-    
-    def make_named_subdir(self, index, class_name):
-        subdir_path = os.path.join(self.rootdir.name, class_name)
-        os.makedirs(subdir_path)
-        self.subdirs[index] = subdir_path
-    
-    def set_active_episode_name(self, index, episode_name):
-        self.active_subdir = self.subdirs[index]
-        self.active_episode_name = episode_name
-    
-    def get_active_prefix(self):
-        return os.path.join(
-            self.rootdir.name,
-            self.active_subdir,
-            self.active_episode_name,
-            )
-
-    def close(self):
-        self.rootdir.cleanup()
-
-
 class EvidenceBar(Rectangle):
 
     def __init__(self, axes, maxval=350.0):
@@ -73,7 +45,7 @@ class DataCollector:
 
     frames_per_update = 5
 
-    def __init__(self, image_encoder, discriminator, camera):
+    def __init__(self, image_encoder, discriminator, camera, rootdir=None):
         
         if not plt.isinteractive():
             raise RuntimeError("Please call plt.ion() "
@@ -99,11 +71,22 @@ class DataCollector:
         self.latent_dim, = dim, = test_latent.shape
         print("Latent space dimensionality: %s.\n" % (self.latent_dim,))
 
-        print("Creating experiment folder . . .")
-        self.path_manager = PathManager()
-        print("Created %r.\n" % (self.path_manager.rootdir.name,))
+        self.rootdir = rootdir
+        print("Saving artifacts to %r.\n" % self.rootdir)
+        
+        self.save_model_information()
 
-        jpath = os.path.join(self.path_manager.rootdir.name, "model_info.json")
+        self.current_video_path = ""
+        self.current_stats_path = ""
+        self.current_tracker = MomentsTracker(np.zeros(dim), np.eye(dim), 0)
+        self.class_eps_stats = {LEFT: [], RIGHT: []}
+
+        self.figure = plt.figure(figsize=(12, 8))
+        self.figure.canvas.mpl_connect("close_event", self.on_close)
+        self.show_provide_names({})
+
+    def save_model_information(self):
+        jpath = os.path.join(self.rootdir, "model_info.json")
         jdata = {
             "class": self.image_encoder.__class__.__name__,
             "downsampling_factor": self.image_encoder.downsampling_factor,
@@ -112,16 +95,9 @@ class DataCollector:
             jdata["keys"] = self.image_encoder.keys
         with open(jpath, "wt") as target:
             json.dump(jdata, target, indent=4)
-
-        self.current_tracker = MomentsTracker(np.zeros(dim), np.eye(dim), 0)
-        self.class_eps_stats = {LEFT: [], RIGHT: []}
-
-        self.figure = plt.figure(figsize=(12, 8))
-        self.figure.canvas.mpl_connect("close_event", self.on_close)
-        self.show_provide_names({})
+        print("Saved model information to %r.\n" % jpath)
 
     def on_close(self, event):
-        self.path_manager.close()
         print("The figure was closed.\n\n")
 
     def show_provide_names(self, event):
@@ -164,13 +140,15 @@ class DataCollector:
             self.bot_box.set_active(False)
             self.datadirs = {}
             for idx, name in self.class_names.items():
-                self.path_manager.make_named_subdir(idx, name)
+                dirpath = os.path.join(self.rootdir, str(idx))
+                os.makedirs(dirpath)
+                with open(os.path.join(dirpath, "class_name.txt"), "wt") as target:
+                    target.write(name)
             self.save_class_names_to_file()
             self.show_ready_to_record({})
 
     def save_class_names_to_file(self):
-        folder = self.path_manager.rootdir.name
-        outpath = os.path.join(folder, "class_indices_and_names.csv")
+        outpath = os.path.join(self.rootdir, "class_indices_and_names.csv")
         with open(outpath, "wt") as target:
             for (k, v) in self.class_names.items():
                 target.write("%s,%s\n" % (k, v))
@@ -285,11 +263,13 @@ class DataCollector:
         recent_latents = []
         self.current_tracker.reset()
 
-        self.path_manager.set_active_episode_name(idx, invent_name())
-        video_path = self.path_manager.get_active_prefix() + ".avi"
+        name = invent_name()
+        folder = os.path.join(self.rootdir, str(idx))
+        self.current_video_path = os.path.join(folder, name + ".avi")
+        self.current_stats_path = os.path.join(folder, name + ".npz")
 
         self.video_writer = cv.VideoWriter(
-            filename=video_path,
+            filename=self.current_video_path,
             fourcc=cv.VideoWriter_fourcc(*"MJPG"),
             fps=16,
             frameSize=(self.image_width, self.image_height),
@@ -393,8 +373,7 @@ class DataCollector:
         self.figure.clf()
         self.set_title("Saving recording . . .")
 
-        stats_path = self.path_manager.get_active_prefix() + ".npz"
-        self.current_tracker.save(stats_path)
+        self.current_tracker.save(self.current_stats_path)
 
         # self.current_image_list = np.stack(self.current_image_list, axis=0)
         # print("Video shape: %r." % (self.current_image_list.shape,))
@@ -492,7 +471,7 @@ class DataCollector:
         all_scores = np.concatenate([pos_scores_after, neg_scores_after])
         self.maxval = 1.5 * np.max(np.abs(all_scores))
 
-        outpath = os.path.join(self.path_manager.rootdir.name, "params.npz")
+        outpath = os.path.join(self.rootdir, "params.npz")
         self.discriminator.save(outpath)
 
         self.figure.tight_layout()
@@ -501,7 +480,7 @@ class DataCollector:
     def discard_recording(self, mouse_event):
         self.figure.clf()
         self.video_writer.release()
-        os.remove(self.path_manager.get_active_prefix() + ".avi")
+        os.remove(self.current_video_path)
         self.set_title("Discarded recording.")
         self.keep_button.set_active(False)
         self.discard_button.set_active(False)

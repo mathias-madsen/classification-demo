@@ -1,6 +1,7 @@
 from argparse import ArgumentParser
 from matplotlib import pyplot as plt
 from IPython.terminal.embed import InteractiveShellEmbed
+from tempfile import TemporaryDirectory
 
 from discriminator import BiGaussianDiscriminator
 from collector import DataCollector
@@ -43,13 +44,14 @@ if __name__ == "__main__":
 
     print("Encoder: %r\n" % encoder)
 
-    collector = DataCollector(
-        image_encoder=encoder,
-        discriminator=BiGaussianDiscriminator(),
-        camera=camera,
-        )
-
-    try:
-        shell()
-    except:
-        collector.on_close()
+    with TemporaryDirectory() as tempdir:
+        collector = DataCollector(
+            image_encoder=encoder,
+            discriminator=BiGaussianDiscriminator(),
+            camera=camera,
+            rootdir=tempdir,
+            )
+        try:
+            shell()
+        except KeyboardInterrupt:
+            collector.on_close()
