@@ -77,6 +77,7 @@ class DataCollector:
 
         self.current_video_path = ""
         self.current_stats_path = ""
+        self.current_codes_path = ""
         self.current_tracker = MomentsTracker(np.zeros(dim), np.eye(dim), 0)
         self.class_eps_stats = {LEFT: [], RIGHT: []}
 
@@ -266,6 +267,7 @@ class DataCollector:
         folder = os.path.join(self.rootdir, str(idx))
         self.current_video_path = os.path.join(folder, name + ".avi")
         self.current_stats_path = os.path.join(folder, name + ".npz")
+        self.current_codes_path = os.path.join(folder, name + ".npy")
 
         self.video_writer = cv.VideoWriter(
             filename=self.current_video_path,
@@ -369,19 +371,18 @@ class DataCollector:
         return all(n >= 1 for n in self.num_examples_per_class().values())
 
     def save_recording(self, mouse_event):
+
         self.figure.clf()
         self.set_title("Saving recording . . .")
-
-        self.current_tracker.save(self.current_stats_path)
-
-        # self.current_image_list = np.stack(self.current_image_list, axis=0)
-        # print("Video shape: %r." % (self.current_image_list.shape,))
 
         label = self.currently_selected_class  # an index, 0 or 1
         name = self.class_names[label]
 
         episode_array = np.stack(self.current_encoding_list, axis=0)
         print("Adding %s frames to class %s." % (len(episode_array), name))
+
+        self.current_tracker.save(self.current_stats_path)
+        np.save(self.current_codes_path, self.current_encoding_list)
 
         self.class_latent_episodes[label].append(episode_array)
 
