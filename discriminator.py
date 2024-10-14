@@ -119,9 +119,9 @@ class BiGaussianDiscriminator:
         return min(typical_pos_logprob, typical_neg_logprob)
 
     def __call__(self, x):
-        pos = self.dist_neg.logpdf(x)
-        neg = self.dist_pos.logpdf(x)
-        neither_logprob = self.smallest_expected_logprob() - 10.0
+        pos = self.dist_pos.logpdf(x)
+        neg = self.dist_neg.logpdf(x)
+        neither_logprob = self.smallest_expected_logprob() - np.log(1e6)
         neither = neither_logprob * np.ones_like(pos)
         logprobs = np.array([neither, neg, pos])
         logprobs -= np.max(logprobs)
