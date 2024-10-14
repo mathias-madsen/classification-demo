@@ -8,7 +8,7 @@ from matplotlib.patches import Rectangle
 from matplotlib import pyplot as plt
 from matplotlib.widgets import Button, TextBox
 
-from gaussians.moments_tracker import MomentsTracker, combine
+from gaussians.moments_tracker import MomentsTracker
 
 
 LEFT = 0
