@@ -25,11 +25,11 @@ if __name__ == "__main__":
 
     print("Setting up camera . . .")
     if type(args.camera) == int:
-        import cv2 as cv
-        camera = cv.VideoCapture(args.camera)
+        from opencv_camera import OpenCVCamera
+        camera = OpenCVCamera(args.camera, downsampling_factor=4)
     elif args.camera.lower() == "ximea":
         from ximea_camera import XimeaCamera
-        camera = XimeaCamera()
+        camera = XimeaCamera(downsampling_factor=4)
     else:
         raise ValueError("Unrecognized camera option %r" % (args.camera,))
 
