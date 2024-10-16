@@ -1,14 +1,10 @@
-import os
-import re
-import cv2 as cv
-from datetime import datetime
-import json
 import numpy as np
+from time import perf_counter
 from matplotlib.patches import Rectangle
 from matplotlib import pyplot as plt
 from matplotlib.widgets import Button, TextBox
 
-from gaussians.moments_tracker import MomentsTracker, combine
+from dataset import EncodingData
 
 
 LEFT = 0
@@ -16,14 +12,6 @@ RIGHT = 1
 
 LEFT_COLOR = "orange"
 RIGHT_COLOR = "magenta"
-
-
-def invent_name():
-    """ Return a string that is part time information, part noise. """
-    head = datetime.now().strftime("%Y%m%d-%H%M%S")
-    alphabet = [chr(i) for i in range(65, 91)]
-    tail = "".join(np.random.choice(alphabet, size=6))
-    return head + "-" + tail
 
 
 class EvidenceBar(Rectangle):
@@ -51,51 +39,21 @@ class DataCollector:
                                "before running this demo.")
         
         self.maxval = 100.0
-        self.image_encoder = image_encoder
-        self.discriminator = discriminator
-        self.class_latent_episodes = {LEFT: [], RIGHT: []}
-        self.class_names = {LEFT: "", RIGHT: ""}
+
         self.time_of_last_image_capture = -float("inf")
-        self.currently_selected_class = None
-        self.recording_in_progress = False
+
+        self.discriminator = discriminator
+
+        self.dataset = EncodingData(image_encoder, rootdir)
+        self.dataset.save_model_information()
 
         self.camera = camera
-        test_image = self.read_rgb()
-        self.image_height, self.image_width, _ = test_image.shape
-        print("Done: resolution %sx%s.\n" %
-              (self.image_height, self.image_width))
-
-        print("Testing image encoder . . .")
-        test_latent = self.image_encoder(test_image)
-        self.latent_dim, = dim, = test_latent.shape
-        print("Latent space dimensionality: %s.\n" % (self.latent_dim,))
-
-        self.rootdir = rootdir
-        print("Saving artifacts to %r.\n" % self.rootdir)
-        
-        self.save_model_information()
-
-        self.current_video_path = ""
-        self.current_stats_path = ""
-        self.current_codes_path = ""
-        self.current_tracker = MomentsTracker(np.zeros(dim), np.eye(dim), 0)
-        self.class_eps_stats = {LEFT: [], RIGHT: []}
+        test_image = self.camera.read_mirrored_rgb()
+        self.dataset.compute_dimensions(test_image)
 
         self.figure = plt.figure(figsize=(12, 8))
         self.figure.canvas.mpl_connect("close_event", self.on_close)
         self.show_provide_names({})
-
-    def save_model_information(self):
-        jpath = os.path.join(self.rootdir, "model_info.json")
-        jdata = {
-            "class": self.image_encoder.__class__.__name__,
-            "downsampling_factor": self.image_encoder.downsampling_factor,
-            }
-        if hasattr(self.image_encoder, "keys"):
-            jdata["keys"] = self.image_encoder.keys
-        with open(jpath, "wt") as target:
-            json.dump(jdata, target, indent=4)
-        print("Saved model information to %r.\n" % jpath)
 
     def on_close(self, event):
         print("The figure was closed.\n\n")
@@ -129,29 +87,17 @@ class DataCollector:
                              fontsize=24, fontweight="bold")
 
     def store_name_neg(self, text):
-        self.class_names[LEFT] = text.upper()
+        self.dataset.class_names[LEFT] = text.upper()
 
     def store_name_pos_and_continue(self, text):
-        self.class_names[RIGHT] = text.upper()
+        self.dataset.class_names[RIGHT] = text.upper()
         # If both text fields have content and the user clicked SUBMIT,
         # we are ready to continue, using the field contents as names:
-        if all(self.class_names.values()):
+        if all(self.dataset.class_names.values()):
             self.top_box.set_active(False)
             self.bot_box.set_active(False)
-            self.datadirs = {}
-            for idx, name in self.class_names.items():
-                dirpath = os.path.join(self.rootdir, str(idx))
-                os.makedirs(dirpath)
-                with open(os.path.join(dirpath, "class_name.txt"), "wt") as target:
-                    target.write(name)
-            self.save_class_names_to_file()
+            self.dataset.save_class_names_to_file()
             self.show_ready_to_record({})
-
-    def save_class_names_to_file(self):
-        outpath = os.path.join(self.rootdir, "class_indices_and_names.csv")
-        with open(outpath, "wt") as target:
-            for (k, v) in self.class_names.items():
-                target.write("%s,%s\n" % (k, v))
 
     def set_title(self, string, color="black", print_too=True):
         if print_too:
@@ -162,12 +108,14 @@ class DataCollector:
                              color=color)
         plt.pause(0.001)
 
-    def read_rgb(self):
-        success, bgr = self.camera.read()
-        assert success
-        rgb = bgr[:, :, ::-1]
-        rgb = rgb[:, ::-1, :]  # mirror left/right for visual sanity
-        return rgb[::4, ::4]  # downsample for speed
+    def reset_stopwatch(self):
+        self.time_of_last_pause = perf_counter()
+    
+    def pause_till_complete(self, fps=10.0):
+        seconds_already_taken = perf_counter() - self.time_of_last_pause
+        target_duration_in_seconds = 1 / fps
+        remaining_seconds = target_duration_in_seconds - seconds_already_taken
+        plt.pause(max(remaining_seconds, 0.001))
 
     def show_ready_to_record(self, mouse_event):
 
@@ -182,7 +130,7 @@ class DataCollector:
         image_axes = plt.subplot2grid((nrows, 2), (0, 0),
                                       rowspan=nrows - 2, colspan=2)
         image_axes.axis("off")
-        rgb = self.read_rgb()
+        rgb = self.camera.read_mirrored_rgb()
         window = image_axes.imshow(rgb)
 
         bar_axes = plt.subplot2grid((nrows, 2), (nrows - 2, 0), colspan=2)
@@ -191,13 +139,17 @@ class DataCollector:
         self.left_axes = plt.subplot2grid((nrows, 2), (nrows - 1, 0))
         self.right_axes = plt.subplot2grid((nrows, 2), (nrows - 1, 1))
 
-        self.left_button = Button(self.left_axes,
-                               "CLASS %r" % self.class_names[LEFT],
-                               color=LEFT_COLOR)
+        self.left_button = Button(
+            self.left_axes,
+            "CLASS %r" % self.dataset.class_names[LEFT],
+            color=LEFT_COLOR,
+            )
 
-        self.right_button = Button(self.right_axes,
-                               "CLASS %r" % self.class_names[RIGHT],
-                               color=RIGHT_COLOR)
+        self.right_button = Button(
+            self.right_axes,
+            "CLASS %r" % self.dataset.class_names[RIGHT],
+            color=RIGHT_COLOR,
+            )
 
         self.left_button.on_clicked(self.start_recording)
         self.right_button.on_clicked(self.start_recording)
@@ -206,29 +158,30 @@ class DataCollector:
         self.right_button.label.set_fontsize(18)
 
         self.figure.tight_layout()
-        
-        recent_latents = []
-        while self.currently_selected_class is None:
-            frame = self.read_rgb()
-            recent_latents.append(self.image_encoder(frame))
+
+        nshown = 0
+        nonempty = self.dataset.all_classes_nonempty()
+        self.reset_stopwatch()
+        while self.dataset.currently_selected_class is None:
+            frame = self.camera.read_mirrored_rgb()
             window.set_data(frame)
-            if (len(recent_latents) >= self.frames_per_update
-                and self.all_classes_nonempty()):
-                evidence = self.discriminator(recent_latents).mean()
+            if nonempty and nshown % 3 == 0:
+                latent = self.dataset.image_encoder(frame)
+                evidence = self.discriminator(latent)
                 barplot.set_value(evidence)
-                recent_latents.clear()
             del frame
-            plt.pause(0.001)
+            nshown += 1
             if not plt.fignum_exists(self.figure.number):
                 break  # the figure was closed manually
+            self.pause_till_complete()
 
     def start_recording(self, mouse_event):
         if mouse_event.inaxes == self.left_axes:
-            self.currently_selected_class = LEFT
+            self.dataset.initialize_recording(LEFT)
         elif mouse_event.inaxes == self.right_axes:
-            self.currently_selected_class = RIGHT
+            self.dataset.initialize_recording(RIGHT)
         else:
-            raise Exception("Unexpected axes: %r" % mouse_event.inaxes)
+            raise Exception("Unexpected axes: %r" % mouse_event.inaxes)        
         self.left_button.set_active(False)
         self.right_button.set_active(False)
         self.figure.clf()
@@ -237,18 +190,29 @@ class DataCollector:
     def show_recording_in_progress(self):
 
         self.figure.clf()
-        idx = self.currently_selected_class
-        name = self.class_names[idx]
-        self.set_title("Recording for class %r." % name,
-                       color=LEFT_COLOR if idx == LEFT else RIGHT_COLOR)
+        name = self.dataset.get_current_class_name()
+        if self.dataset.currently_selected_class == LEFT:
+            color = LEFT_COLOR
+        elif self.dataset.currently_selected_class == RIGHT:
+            color = RIGHT_COLOR
+        else:
+            raise Exception("Unexpected class index %r" %
+                            self.dataset.currently_selected_class)
 
         self.recording_in_progress = True
         nrows = 7  # more rows ==> larger image and smaller buttons
         image_axes = plt.subplot2grid((nrows, 2), (0, 0), rowspan=nrows - 1, colspan=2)
         image_axes.axis("off")
-        rgb = self.read_rgb()
+        rgb = self.camera.read_mirrored_rgb()
         window = image_axes.imshow(rgb)
-        
+
+        title = self.figure.suptitle(
+            "Recoding for class %r" % name,
+            color=color,
+            fontsize=28,
+            fontweight="bold",
+            )
+
         bar_axes = plt.subplot2grid((nrows, 2), (nrows - 1, 0))
         barplot = EvidenceBar(bar_axes, maxval=self.maxval)
         
@@ -258,49 +222,26 @@ class DataCollector:
         self.stop_button.label.set_fontsize(18)
         self.figure.tight_layout()
 
-        self.current_image_list = []
-        self.current_encoding_list = []
-        recent_latents = []
-        self.current_tracker.reset()
-
-        name = invent_name()
-        folder = os.path.join(self.rootdir, str(idx))
-        self.current_video_path = os.path.join(folder, name + ".avi")
-        self.current_stats_path = os.path.join(folder, name + ".npz")
-        self.current_codes_path = os.path.join(folder, name + ".npy")
-
-        self.video_writer = cv.VideoWriter(
-            filename=self.current_video_path,
-            fourcc=cv.VideoWriter_fourcc(*"MJPG"),
-            fps=16,
-            frameSize=(self.image_width, self.image_height),
-            )
-
+        nframes = 0
+        nonempty = self.dataset.all_classes_nonempty()
+        self.reset_stopwatch()
         while self.recording_in_progress:
 
-            frame = self.read_rgb()
-            self.current_image_list.append(frame)
+            frame = self.camera.read_mirrored_rgb()
+            self.dataset.record_frame(frame)
             window.set_data(frame)
-            self.video_writer.write(frame[:, :, ::-1])  # write BGR to .avi
+            nframes += 1
 
-            latent_vector = self.image_encoder(frame)
-            self.current_tracker.update_with_single(latent_vector)
-            self.current_encoding_list.append(latent_vector)
-            recent_latents.append(latent_vector)
-
-            if (len(recent_latents) >= self.frames_per_update
-                and self.all_classes_nonempty()):
-                evidence = self.discriminator(recent_latents).mean()
-                recent_latents.clear()
+            if (nframes % self.frames_per_update == 0 and nonempty):
+                all_latents = self.dataset.current_encoding_list
+                evidence = self.discriminator(all_latents[-1])
                 barplot.set_value(evidence)
-
-            name = self.class_names[self.currently_selected_class]
-            color = LEFT_COLOR if idx == LEFT else RIGHT_COLOR
-            nframes = len(self.current_encoding_list)
-            title = "Recorded %s examples of class %r" % (nframes, name)
-            self.set_title(title, color=color, print_too=False)
-
-            plt.pause(0.001)
+            
+            name = self.dataset.get_current_class_name()            
+            header = "Recorded %s examples of class %r" % (nframes, name)
+            title.set_text(header)
+            
+            self.pause_till_complete()
 
             if not plt.fignum_exists(self.figure.number):
                 break  # the figure was closed manually
@@ -308,7 +249,6 @@ class DataCollector:
     def stop_recording(self, mouse_event):
 
         print("Stopped recording.\n")
-        self.video_writer.release()
         self.recording_in_progress = False
         self.stop_button.set_active(False)
         self.show_rate_recording_screen()
@@ -316,8 +256,7 @@ class DataCollector:
     def show_rate_recording_screen(self):
 
         self.figure.clf()
-        idx = self.currently_selected_class
-        name = self.class_names[idx]
+        name = self.dataset.get_current_class_name()
         self.set_title("Save video for class %r?" % name,
                        color=LEFT_COLOR if name == LEFT else RIGHT_COLOR)
 
@@ -359,52 +298,22 @@ class DataCollector:
         for row in range(nrows - 1):
             for col in range(ncols):
                 axes = axdict[row, col]
-                time = np.random.randint(len(self.current_image_list))
-                axes.imshow(self.current_image_list[time])
+                time = np.random.randint(len(self.dataset.current_image_list))
+                axes.imshow(self.dataset.current_image_list[time])
         plt.pause(0.001)
-
-    def num_examples_per_class(self):
-        return {self.class_names[idx]: sum(len(e) for e in collection)
-                for idx, collection in self.class_latent_episodes.items()}
-
-    def all_classes_nonempty(self):
-        return all(n >= 1 for n in self.num_examples_per_class().values())
 
     def save_recording(self, mouse_event):
 
         self.figure.clf()
+
         self.set_title("Saving recording . . .")
-
-        label = self.currently_selected_class  # an index, 0 or 1
-        name = self.class_names[label]
-
-        episode_array = np.stack(self.current_encoding_list, axis=0)
-        print("Adding %s frames to class %s." % (len(episode_array), name))
-
-        self.current_tracker.save(self.current_stats_path)
-        np.save(self.current_codes_path, self.current_encoding_list)
-
-        self.class_latent_episodes[label].append(episode_array)
-
-        self.class_eps_stats[label].append(self.current_tracker.copy())
-        self.current_tracker.reset()
-
-        for idx, trackerslist in self.class_eps_stats.items():
-            if trackerslist:
-                outpath = os.path.join(self.rootdir, "grand_stats_%s.npz" % idx)
-                combined = combine(trackerslist)
-                combined.save(outpath)
-
+        self.dataset.save_recording()
         self.set_title("Saved recording.\n")
 
         self.keep_button.set_active(False)
         self.discard_button.set_active(False)
-        self.currently_selected_class = None
 
-        del self.current_image_list
-
-        print("CLASS SIZES:", self.num_examples_per_class())
-        if self.all_classes_nonempty():
+        if self.dataset.all_classes_nonempty():
             self.show_fit_results_screen()
         else:
             self.show_ready_to_record({})
@@ -412,8 +321,8 @@ class DataCollector:
     def show_fit_results_screen(self):
 
         self.figure.clf()
-        pos_vectors = np.concatenate(self.class_latent_episodes[RIGHT], axis=0)
-        neg_vectors = np.concatenate(self.class_latent_episodes[LEFT], axis=0)
+        pos_vectors = np.concatenate(self.dataset.class_episode_codes[RIGHT], axis=0)
+        neg_vectors = np.concatenate(self.dataset.class_episode_codes[LEFT], axis=0)
 
         pos_scores_before = self.discriminator(pos_vectors)
         neg_scores_before = self.discriminator(neg_vectors)
@@ -422,6 +331,9 @@ class DataCollector:
 
         pos_scores_after = self.discriminator(pos_vectors)
         neg_scores_after = self.discriminator(neg_vectors)
+
+        all_scores = np.concatenate([pos_scores_after, neg_scores_after])
+        self.maxval = 1.5 * np.max(np.abs(all_scores))
 
         nrows = 6  # more rows ==> larger image and smaller buttons
         rowspan = (nrows - 1) // 2
@@ -433,9 +345,9 @@ class DataCollector:
         self.continue_button.on_clicked(self.show_ready_to_record)
         self.continue_button.label.set_fontsize(18)
 
-        counts = self.num_examples_per_class()
-        lname = self.class_names[LEFT]
-        rname = self.class_names[RIGHT]
+        counts = self.dataset.num_examples_per_class()
+        lname = self.dataset.class_names[LEFT]
+        rname = self.dataset.class_names[RIGHT]
 
         if not (np.allclose(pos_scores_before, 0) and
                 np.allclose(neg_scores_before, 0)):
@@ -474,22 +386,13 @@ class DataCollector:
         hist_axes_bot.legend()
         hist_axes_bot.set_title("AFTER model fitting", fontsize=18)
 
-        all_scores = np.concatenate([pos_scores_after, neg_scores_after])
-        self.maxval = 1.5 * np.max(np.abs(all_scores))
-
-        outpath = os.path.join(self.rootdir, "params.npz")
-        self.discriminator.save(outpath)
-
         self.figure.tight_layout()
         plt.pause(0.001)
 
     def discard_recording(self, mouse_event):
         self.figure.clf()
-        self.video_writer.release()
-        os.remove(self.current_video_path)
+        self.dataset.discard_recording()
         self.set_title("Discarded recording.")
         self.keep_button.set_active(False)
         self.discard_button.set_active(False)
-        self.current_episode = None
-        self.currently_selected_class = None
         self.show_ready_to_record({})
