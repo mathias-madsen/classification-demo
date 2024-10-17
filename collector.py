@@ -398,7 +398,6 @@ class DataCollector:
                                       if i != idx])  # only selected left
                 train_right = combine(right_stats)  # all right
                 self.discriminator.fit_with_moments(train_right, train_left)
-                test_left = left_latent[idx]
                 logprobs = self.discriminator(left_latent[idx])
                 winners = np.argmax(logprobs, axis=0)
                 left_accuracies.append(winners == 1)
@@ -418,12 +417,14 @@ class DataCollector:
         # FYI, the training accuracy:
 
         test_right = np.concatenate(self.dataset.class_episode_codes[RIGHT], axis=0)
-        accuracy_right = np.mean(self.discriminator(test_right) > 1e-5, axis=0)
+        rneither, rneg, rpos = self.discriminator(test_right)
+        accuracy_right = np.mean((rpos > rneg) * (rpos > rneither))
         print("Training accuracy %r: %.5f" %
               (self.dataset.class_names[RIGHT], accuracy_right))
 
         test_left = np.concatenate(self.dataset.class_episode_codes[LEFT], axis=0)
-        accuracy_left = np.mean(self.discriminator(test_left) < -1e-5, axis=0)
+        lneither, lneg, lpos = self.discriminator(test_left)
+        accuracy_left = np.mean((lneg > lpos) * (lneg > lneither))
         print("Training accuracy %r: %.5f" %
               (self.dataset.class_names[LEFT], accuracy_left))
         print()
