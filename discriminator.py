@@ -3,7 +3,7 @@ from scipy.stats import multivariate_normal
 
 from gaussians.moments_tracker import MomentsTracker, combine
 from gaussians import marginal_log_likelihoods as likes
-
+from gaussians.logdensities import logp_ppf
 
 class BiGaussianDiscriminator:
 
@@ -114,14 +114,14 @@ class BiGaussianDiscriminator:
         self.dist_neg = multivariate_normal(negmean, negcov)
 
     def smallest_expected_logprob(self):
-        typical_pos_logprob = -self.dist_pos.entropy()
-        typical_neg_logprob = -self.dist_neg.entropy()
+        typical_pos_logprob = logp_ppf(self.dist_pos.cov, 1e-15)
+        typical_neg_logprob = logp_ppf(self.dist_neg.cov, 1e-15)
         return min(typical_pos_logprob, typical_neg_logprob)
 
     def __call__(self, x):
         pos = self.dist_pos.logpdf(x)
         neg = self.dist_neg.logpdf(x)
-        neither_logprob = self.smallest_expected_logprob() - np.log(1e6)
+        neither_logprob = self.smallest_expected_logprob()
         neither = neither_logprob * np.ones_like(pos)
         logprobs = np.array([neither, neg, pos])
         logprobs -= np.max(logprobs)
