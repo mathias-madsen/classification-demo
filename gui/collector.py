@@ -438,12 +438,12 @@ class DataCollector:
         # FYI, the training accuracy:
 
         test_right = np.concatenate(self.dataset.class_episode_codes[RIGHT], axis=0)
-        accuracy_right = np.mean(self.discriminator(test_right) > 1e-5)
+        accuracy_right = np.mean(self.discriminator(test_right) > 1e-5, axis=0)
         print("Training accuracy %r: %.5f" %
               (self.dataset.class_names[RIGHT], accuracy_right))
 
         test_left = np.concatenate(self.dataset.class_episode_codes[LEFT], axis=0)
-        accuracy_left = np.mean(self.discriminator(test_left) < -1e-5)
+        accuracy_left = np.mean(self.discriminator(test_left) < -1e-5, axis=0)
         print("Training accuracy %r: %.5f" %
               (self.dataset.class_names[LEFT], accuracy_left))
         print()
