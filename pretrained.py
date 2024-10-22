@@ -5,8 +5,8 @@ from onnxruntime import InferenceSession
 
 DEFAULT_KEYS = [
     'Eyx1',
-    # 'Varsyx1',
-    # 'Covyx1',
+    'Varsyx1',
+    'Covyx1',
     # 'Eyx2',
     # 'Varsyx2',
     # 'Covyx2',
