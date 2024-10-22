@@ -90,6 +90,7 @@ class EncodingData:
 
     def initialize_recording(self, class_index):
 
+        print("Initializing recording for class %s" % class_index)
         self.currently_selected_class = class_index
 
         self.current_image_list = []
@@ -120,6 +121,9 @@ class EncodingData:
 
     def save_recording(self):
 
+        print("Saving %s frames for class %s" %
+              (self.current_tracker.count, self.currently_selected_class))
+
         self.video_writer.release()
 
         self.current_tracker.save(self.current_stats_path)
@@ -133,11 +137,15 @@ class EncodingData:
         self.class_episode_stats[idx].append(self.current_tracker.copy())
         self.current_tracker.reset()
 
+        print()
         for idx, trackerslist in self.class_episode_stats.items():
             if trackerslist:
                 outpath = os.path.join(self.rootdir, "grand_stats_%s.npz" % idx)
                 combined = combine(trackerslist)
                 combined.save(outpath)
+                print("Combined %s episodes for class %s into a single summary" %
+                      (len(trackerslist), idx))
+        print()
 
         self.currently_selected_class = None
         del self.current_image_list
