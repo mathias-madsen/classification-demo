@@ -406,8 +406,7 @@ class DataCollector:
                 train_right = combine([m for i, m in enumerate(right_stats)
                                        if i != idx])  # only selected right
                 self.discriminator.fit_with_moments(train_right, train_left)
-                test_right = right_latent[idx]
-                logits = self.discriminator(test_right)
+                logits = self.discriminator(right_latent[idx])
                 right_accuracies.append(logits > 1e-5)
                 load_bar.update()
             right_crossval_accuracy = np.mean(np.concatenate(right_accuracies))
@@ -419,8 +418,7 @@ class DataCollector:
                                       if i != idx])  # only selected left
                 train_right = combine(right_stats)  # all right
                 self.discriminator.fit_with_moments(train_right, train_left)
-                test_left = left_latent[idx]
-                logits = self.discriminator(test_left)
+                logits = self.discriminator(left_latent[idx])
                 left_accuracies.append(logits < -1e-5)
                 load_bar.update()
             left_crossval_accuracy = np.mean(np.concatenate(left_accuracies))
