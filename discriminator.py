@@ -1,7 +1,8 @@
 import numpy as np
 from scipy.stats import multivariate_normal
 
-from gaussians.moments_tracker import MomentsTracker, combine
+from gaussians.moments_tracker import MomentsTracker
+from gaussians.moments_tracker import combine, combine_covariance_only
 from gaussians import marginal_log_likelihoods as likes
 
 
@@ -85,22 +86,21 @@ class BiGaussianDiscriminator:
             else:
                 raise Exception("Unpected inddex %s" % (winner,))
 
-        combined_stats = combine([positive_stats, negative_stats])
-        posterior_shared = combine([combined_stats, prior_stats])
+        shared_cov = combine_covariance_only(*positive_stats, *negative_stats)
         posterior_pos = combine([positive_stats, prior_stats])
         posterior_neg = combine([negative_stats, prior_stats])
         posmean = posterior_pos.mean
         negmean = posterior_neg.mean
 
         if winner == 0:
-            poscov = np.diag(posterior_shared.cov.diagonal())
-            negcov = np.diag(posterior_shared.cov.diagonal())
+            poscov = np.diag(shared_cov.diagonal())
+            negcov = np.diag(shared_cov.diagonal())
         elif winner == 1:
             poscov = np.diag(posterior_pos.cov.diagonal())
             negcov = np.diag(posterior_neg.cov.diagonal())
         elif winner == 2:
-            poscov = posterior_shared.cov.copy()
-            negcov = posterior_shared.cov.copy()
+            poscov = shared_cov.copy()
+            negcov = shared_cov.copy()
         elif winner == 3:
             poscov = posterior_pos.cov
             negcov = posterior_neg.cov

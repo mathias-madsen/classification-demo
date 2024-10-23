@@ -29,6 +29,17 @@ def mixed_covariance(mean, cov, size, mean0, cov0, size0):
         )
 
 
+def combine_covariance_only(mean1, cov1, count1, mean2, cov2, count2):
+    """
+    Estimate the covariance matrix of an entire data set, assuming that
+    the observations come from two different disttributions with shared
+    covariance, but different means.
+    """
+    weight1 = count1 / (count1 + count2)
+    weight2 = count2 / (count1 + count2)
+    return weight1*cov1 + weight2*cov2
+
+
 class MomentsTracker:
 
     def __init__(self, mean, cov, count=0):

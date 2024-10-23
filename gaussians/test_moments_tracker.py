@@ -2,7 +2,10 @@ import os
 from tempfile import TemporaryDirectory
 import numpy as np
 
-from gaussians.moments_tracker import MomentsTracker, combine, mixed_covariance
+from gaussians.moments_tracker import MomentsTracker
+from gaussians.moments_tracker import mixed_covariance
+from gaussians.moments_tracker import combine
+from gaussians.moments_tracker import combine_covariance_only
 
 
 def test_combine_moment_trackers():
@@ -200,6 +203,115 @@ def test_moments_tracker_saving_and_loading():
     assert np.isclose(restored.count, len(x))
 
 
+def test_combine_covariance_only_with_batch_computation():
+
+    dim = np.random.randint(2, 10)
+    count1, count2 = np.random.randint(10, 25, size=2)
+    sample1 = np.random.normal(size=(count1, dim))
+    sample2 = np.random.normal(size=(count2, dim))
+
+    devs1 = sample1 - np.mean(sample1, axis=0, keepdims=True)
+    devs2 = sample2 - np.mean(sample2, axis=0, keepdims=True)
+    all_devs = np.concatenate([devs1, devs2], axis=0)
+
+    cov1 = devs1.T @ devs1 / count1
+    cov2 = devs2.T @ devs2 / count2
+    shared_cov = all_devs.T @ all_devs / (count1 + count2)
+
+    assert np.allclose(cov1, np.cov(sample1.T, ddof=0))
+    assert np.allclose(cov2, np.cov(sample2.T, ddof=0))
+
+    combined_cov = combine_covariance_only(
+        None, cov1, count1,
+        None, cov2, count2,
+        )
+
+    assert np.allclose(combined_cov, shared_cov)
+
+
+def test_combine_covariance_only_with_stepwise_computation():
+
+    # NOTE: suppose two distributions P1 and P2 have means mu1 and mu2,
+    # and share a single scatter matrix S. We can then as usual update
+    # the means using the rules
+    #
+    #   mu1 <- k1/(k1 + 1)*mu1 + 1/(k1 + 1)*x    if x ~ P1
+    #   mu2 <- k2/(k2 + 1)*mu2 + 1/(k2 + 1)*x    if x ~ P2
+    #
+    # where k1 is the number of observations seen from P1 so far, and k2
+    # the number of observations seen from P2 so far.
+    #
+    # For the shared scatter matrix S, however, we get the update rules
+    #
+    #   S <- S + k1/(k1 + 1)**2*outer(x - mu1, x - mu1)    if x ~ P1
+    #   S <- S + k2/(k2 + 1)**2*outer(x - mu2, x - mu2)    if x ~ P2
+    #
+    # This is equivalent to writing S as the sum of two scatter matrices,
+    # one per distribution component, and estimating those components
+    # separately.
+    #
+    # If we convert these rules into a single update rule for a shared
+    # covariance matrix instead of the shared scatter matrix, it becomes
+    #
+    #   C <- k/(k + 1)*C + k1/((k1 + 1)*(k + 1))*outer(x - mu1, x - mu1)
+    #       if x ~ P1
+    #   C <- k/(k + 1)*C + k2/((k2 + 1)*(k + 1))*outer(x - mu2, x - mu2)
+    #       if x ~ P2
+    #
+    # where k = k1 + k2 is the total number of observations with which
+    # the covariance-matrix estimate has been updated so far.
+
+    dim = np.random.randint(2, 10)
+    count1, count2 = np.random.randint(10, 25, size=2)
+    sample1 = np.random.normal(size=(count1, dim))
+    sample2 = np.random.normal(size=(count2, dim))
+
+    k = 0
+    cov = np.eye(dim)
+    k1 = 0
+    k2 = 0
+    mean1 = np.zeros(dim)
+    mean2 = np.zeros(dim)
+    cov1 = np.eye(dim)
+    cov2 = np.eye(dim)
+
+    for x in sample1:
+        cov *= k / (k + 1)
+        cov += k1 / ((k + 1) * (k1 + 1)) * np.outer(x - mean1, x - mean1)
+        cov1 *= k1 / (k1 + 1)
+        cov1 += k1 / (k1 + 1) ** 2 * np.outer(x - mean1, x - mean1)
+        mean1 *= k1 / (k1 + 1)
+        mean1 += 1 / (k1 + 1) * x
+        k1 += 1
+        k += 1
+
+    for x in sample2:
+        cov *= k / (k + 1)
+        cov += k2 / ((k + 1) * (k2 + 1)) * np.outer(x - mean2, x - mean2)
+        cov2 *= k2 / (k2 + 1)
+        cov2 += k2 / (k2 + 1) ** 2 * np.outer(x - mean2, x - mean2)
+        mean2 *= k2 / (k2 + 1)
+        mean2 += 1 / (k2 + 1) * x
+        k2 += 1
+        k += 1
+
+    assert np.allclose(np.mean(sample1, axis=0), mean1)
+    assert np.allclose(np.mean(sample2, axis=0), mean2)
+
+    assert np.allclose(np.cov(sample1.T, ddof=0), cov1)
+    assert np.allclose(np.cov(sample2.T, ddof=0), cov2)
+
+    assert np.isclose(len(sample1), k1)
+    assert np.isclose(len(sample2), k2)
+
+    combined_cov = combine_covariance_only(
+        None, cov1, k1,
+        None, cov2, k2,
+        )
+
+    assert np.allclose(combined_cov, cov)
+
+
 if __name__ == "__main__":
 
     test_combine_moment_trackers()
@@ -209,4 +321,6 @@ if __name__ == "__main__":
     test_moments_tracker_update_with_moments()
     test_mixed_covariance()
     test_moments_tracker_saving_and_loading()
+    test_combine_covariance_only_with_batch_computation()
+    test_combine_covariance_only_with_stepwise_computation()
 
