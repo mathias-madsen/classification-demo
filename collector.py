@@ -256,9 +256,10 @@ class DataCollector:
     def show_rate_recording_screen(self):
 
         self.figure.clf()
+        idx = self.dataset.currently_selected_class
         name = self.dataset.get_current_class_name()
         self.set_title("Save video for class %r?" % name,
-                       color=LEFT_COLOR if name == LEFT else RIGHT_COLOR)
+                       color=LEFT_COLOR if idx == LEFT else RIGHT_COLOR)
 
         nrows = 5
         ncols = 4
