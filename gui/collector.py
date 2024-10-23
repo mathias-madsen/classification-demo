@@ -480,7 +480,7 @@ class DataCollector:
         # RIGHT == 1
 
         text_axes.text(x=0, y=2.0, s=self.dataset.class_names[RIGHT],
-                       color=RIGHT_COLOR, fontweight="bold", fontsize=24)
+                       color=RIGHT_COLOR, fontweight="bold", fontsize=36)
 
         if right_crossval_accuracy is not None:
             title = ("Cross-validated accuracy: %.1f pct" %
