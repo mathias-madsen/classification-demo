@@ -50,3 +50,11 @@ class BiGaussianDiscriminator:
         instance = BiGaussianDiscriminator()
         instance.load(path)
         return instance
+
+    def evaluate(self, codes, labels):
+        """ Return booleans indicating where the model is correct. """
+        logits = self(codes)
+        return (
+            (logits > 1e-5) * (labels == 1) +
+            (logits < -1e-5) * (labels == 0)
+            )
