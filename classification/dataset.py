@@ -193,7 +193,7 @@ class EncodingData:
         
         return sum(all_correlated), sum(all_uncorrelated)
     
-    def num_cross_val_steps(self):
+    def compute_num_cross_val_steps(self):
         lengths = [len(v) for v in self.class_episode_stats.values()]
         capped_lengths = [min(n, MAX_XVAL_STEPS_PER_CLASS) for n in lengths]
         return sum(n_eps if n_eps >= 2 else 0 for n_eps in capped_lengths)

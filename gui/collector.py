@@ -373,41 +373,6 @@ class DataCollector:
         else:
             self.show_ready_to_record({})
 
-    def compute_num_cross_val_steps(self):
-        left_stats = self.dataset.class_episode_stats[LEFT]
-        right_stats = self.dataset.class_episode_stats[RIGHT]
-        num_right = 0 if len(right_stats) < 2 else len(right_stats)
-        num_left = 0 if len(left_stats) < 2 else len(left_stats)
-        return num_right + num_left
-
-    def iter_cross_val_right(self):
-
-        right_latent = self.dataset.class_episode_codes[RIGHT]
-        left_stats = self.dataset.class_episode_stats[LEFT]
-        right_stats = self.dataset.class_episode_stats[RIGHT]
-
-        if len(right_stats) >= 2:
-            for idx in range(len(right_stats)):
-                train_left = combine(left_stats)  # all left
-                train_right = combine([m for i, m in enumerate(right_stats)
-                                       if i != idx])  # only selected right
-                self.discriminator.fit_with_moments(train_right, train_left)
-                yield self.discriminator.evaluate(right_latent[idx], 1)
-
-    def iter_cross_val_left(self):
-
-        left_latent = self.dataset.class_episode_codes[LEFT]
-        left_stats = self.dataset.class_episode_stats[LEFT]
-        right_stats = self.dataset.class_episode_stats[RIGHT]
-
-        if len(left_stats) >= 2:
-            for idx in range(len(left_stats)):
-                train_left = combine([m for i, m in enumerate(left_stats)
-                                      if i != idx])  # only selected left
-                train_right = combine(right_stats)  # all right
-                self.discriminator.fit_with_moments(train_right, train_left)
-                yield self.discriminator.evaluate(left_latent[idx], 0)
-
     def show_fit_results_screen(self):
 
         self.figure.clf()
@@ -428,19 +393,26 @@ class DataCollector:
         right_crossval_accuracy = None
         left_crossval_accuracy = None
 
-        load_bar = LoadBar(self.figure, self.compute_num_cross_val_steps())
+        num_steps = self.dataset.compute_num_cross_val_steps()
+        load_bar = LoadBar(self.figure, num_steps)
 
         right_accuracies = []
-        for p in self.iter_cross_val_right():
-            right_accuracies.append(p)
+        for idx, pos, neg in self.dataset.iter_train_stats_with_holdout(RIGHT):
+            self.discriminator.fit_with_moments(pos, neg)
+            test_codes = self.dataset.class_episode_codes[RIGHT][idx]
+            true_positives = self.discriminator.evaluate(test_codes, RIGHT)
+            right_accuracies.append(true_positives)
             load_bar.update()
         if right_accuracies:
             right_crossval_accuracy = np.mean(np.concatenate(right_accuracies))
             print("RIGHT CROSSVAL ACCURACY:", right_crossval_accuracy)
 
         left_accuracies = []
-        for p in self.iter_cross_val_left():
-            left_accuracies.append(p)
+        for idx, pos, neg in self.dataset.iter_train_stats_with_holdout(LEFT):
+            self.discriminator.fit_with_moments(pos, neg)
+            test_codes = self.dataset.class_episode_codes[LEFT][idx]
+            true_negatives = self.discriminator.evaluate(test_codes, LEFT)
+            left_accuracies.append(true_negatives)
             load_bar.update()
         if left_accuracies:
             left_crossval_accuracy = np.mean(np.concatenate(left_accuracies))
