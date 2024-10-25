@@ -5,7 +5,8 @@ from matplotlib import pyplot as plt
 from matplotlib.widgets import Button, TextBox
 
 from dataset import EncodingData
-
+from discriminator import BiGaussianDiscriminator
+from gaussians.moments_tracker import combine
 
 LEFT = 0
 RIGHT = 1
@@ -328,7 +329,11 @@ class DataCollector:
         pos_scores_before = self.discriminator(pos_vectors)
         neg_scores_before = self.discriminator(neg_vectors)
 
-        self.discriminator.fit(pos_vectors, neg_vectors, verbose=True)
+        self.discriminator.fit_with_moments(
+            combine(self.dataset.class_episode_stats[RIGHT]),
+            combine(self.dataset.class_episode_stats[LEFT]),
+            verbose=True,
+            )
 
         pos_scores_after = self.discriminator(pos_vectors)
         neg_scores_after = self.discriminator(neg_vectors)
