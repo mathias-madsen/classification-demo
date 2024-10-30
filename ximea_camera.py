@@ -27,3 +27,35 @@ class XimeaCamera(xiapi.Camera):
         rgb = rgb[:, ::-1, :]  # mirror left/right for visual sanity
         dsf = self.downsampling_factor
         return rgb[::dsf, ::dsf]  # downsample for speed
+
+    def close(self):
+        self.close_device()
+
+
+if __name__ == "__main__":
+
+    from matplotlib import pyplot as plt
+
+    camera = XimeaCamera()
+    image = camera.read_mirrored_rgb()
+
+    plt.ion()
+    figure, axes = plt.subplots(figsize=(12, 8))
+    panel = axes.imshow(image)
+    axes.set_title("0", fontsize=28)
+    axes.axis("off")
+    figure.tight_layout()
+
+    try:
+        nread = 0
+        while plt.fignum_exists(figure.number):
+            nread += 1
+            axes.set_title(str(nread), fontsize=28)
+            image = camera.read_mirrored_rgb()
+            panel.set_data(image)
+            plt.pause(0.01)
+    except KeyboardInterrupt:
+        plt.close("all")
+    finally:
+        camera.close()
+
