@@ -109,8 +109,10 @@ class BiGaussianDiscriminator:
             MomentsTracker(np.zeros(dim), np.eye(dim), 1.0),
         ])
 
-        assert not np.isclose(np.linalg.det(post_pos.cov), 0.0)
-        assert not np.isclose(np.linalg.det(post_neg.cov), 0.0)
+        _, posdet = np.linalg.slogdet(post_pos.cov)
+        _, negdet = np.linalg.slogdet(post_neg.cov)
+        assert not np.isinf(posdet)
+        assert not np.isinf(negdet)
 
         del self.dist_pos
         del self.dist_neg
