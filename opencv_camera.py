@@ -16,6 +16,8 @@ class OpenCVCamera(cv.VideoCapture):
         dsf = self.downsampling_factor
         return rgb[::dsf, ::dsf]  # downsample for speed
 
+    def close(self):
+        pass  # `self.release()` causes "segmentation fault: 11"
 
 if __name__ == "__main__":
 
@@ -31,14 +33,16 @@ if __name__ == "__main__":
     axes.axis("off")
     figure.tight_layout()
 
-    nread = 0
-    while plt.fignum_exists(figure.number):
-        nread += 1
-        axes.set_title(str(nread), fontsize=28)
-        image = camera.read_mirrored_rgb()
-        panel.set_data(image)
-        plt.pause(0.01)
-    
-    camera.release()
+    try:
+        nread = 0
+        while plt.fignum_exists(figure.number):
+            nread += 1
+            axes.set_title(str(nread), fontsize=28)
+            image = camera.read_mirrored_rgb()
+            panel.set_data(image)
+            plt.pause(0.01)
+    except KeyboardInterrupt:
+        plt.close("all")
+    finally:
+        camera.close()
 
-    
