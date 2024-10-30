@@ -1,6 +1,6 @@
 import numpy as np
-from scipy.stats import multivariate_normal
 
+from gaussians.multivariate_normal import MultivariateNormal
 from gaussians.moments_tracker import MomentsTracker
 from gaussians.moments_tracker import combine, combine_covariance_only
 from gaussians import marginal_log_likelihoods as likes
@@ -8,13 +8,9 @@ from gaussians import marginal_log_likelihoods as likes
 
 class BiGaussianDiscriminator:
 
-    def __init__(self, dim=None):
-        if dim is not None:
-            self.dist_pos = multivariate_normal(np.zeros(dim), np.eye(dim))
-            self.dist_neg = multivariate_normal(np.zeros(dim), np.eye(dim))
-        else:
-            self.dist_pos = None
-            self.dist_neg = None
+    def __init__(self):
+        self.dist_pos = None
+        self.dist_neg = None
     
     def fit(self, positive_examples, negative_examples, verbose=False):
         
@@ -87,34 +83,39 @@ class BiGaussianDiscriminator:
                 raise Exception("Unpected inddex %s" % (winner,))
 
         shared_cov = combine_covariance_only(*positive_stats, *negative_stats)
-        posterior_pos = combine([positive_stats, prior_stats])
-        posterior_neg = combine([negative_stats, prior_stats])
-        posmean = posterior_pos.mean
-        negmean = posterior_neg.mean
 
         if winner == 0:
             poscov = np.diag(shared_cov.diagonal())
             negcov = np.diag(shared_cov.diagonal())
         elif winner == 1:
-            poscov = np.diag(posterior_pos.cov.diagonal())
-            negcov = np.diag(posterior_neg.cov.diagonal())
+            poscov = np.diag(positive_stats.cov.diagonal())
+            negcov = np.diag(negative_stats.cov.diagonal())
         elif winner == 2:
             poscov = shared_cov.copy()
             negcov = shared_cov.copy()
         elif winner == 3:
-            poscov = posterior_pos.cov
-            negcov = posterior_neg.cov
+            poscov = positive_stats.cov
+            negcov = negative_stats.cov
         else:
             raise Exception("Unpected inddex %s" % (winner,))
 
-        if self.dist_pos is not None:
-            self.dist_pos.mean[:] = posmean
-            self.dist_pos.cov[:] = poscov
-            self.dist_neg.mean[:] = negmean
-            self.dist_neg.cov[:] = negcov
-        else:
-            self.dist_pos = multivariate_normal(posmean, poscov)
-            self.dist_neg = multivariate_normal(negmean, negcov)
+        post_pos = combine([
+            MomentsTracker(positive_stats.mean, poscov, positive_stats.count),
+            MomentsTracker(np.zeros(dim), np.eye(dim), 1.0),
+        ])
+
+        post_neg = combine([
+            MomentsTracker(negative_stats.mean, negcov, negative_stats.count),
+            MomentsTracker(np.zeros(dim), np.eye(dim), 1.0),
+        ])
+
+        assert not np.isclose(np.linalg.det(post_pos.cov), 0.0)
+        assert not np.isclose(np.linalg.det(post_neg.cov), 0.0)
+
+        del self.dist_pos
+        del self.dist_neg
+        self.dist_pos = MultivariateNormal(post_pos.mean, post_pos.cov)
+        self.dist_neg = MultivariateNormal(post_neg.mean, post_neg.cov)
 
     def __call__(self, x):
         if self.dist_pos is None:
@@ -135,9 +136,9 @@ class BiGaussianDiscriminator:
             cluster_means = archive["cluster_means"]
             cluster_covs = archive["cluster_covs"]
         # NEGATIVE is number 1 (1-based):
-        self.dist_neg = multivariate_normal(cluster_means[0], cluster_covs[0])
+        self.dist_neg = MultivariateNormal(cluster_means[0], cluster_covs[0])
         # POSITIVE is number 2 (1-based):
-        self.dist_pos = multivariate_normal(cluster_means[1], cluster_covs[1])
+        self.dist_pos = MultivariateNormal(cluster_means[1], cluster_covs[1])
 
     @classmethod
     def fromsaved(self, path):
