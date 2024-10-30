@@ -79,26 +79,48 @@ class DataCollector:
         self.top_box.text_disp.set_fontsize(28)
         self.bot_box.text_disp.set_fontsize(28)
 
-        plt.pause(0.001)
-
-        self.top_box.on_submit(self.store_name_neg)
-        self.bot_box.on_submit(self.store_name_pos_and_continue)
-
         self.figure.suptitle("NAME YOUR CLASSES",
                              fontsize=24, fontweight="bold")
 
-    def store_name_neg(self, text):
-        self.dataset.class_names[LEFT] = text.upper()
+        self.bot_axes.set_xlabel(" ", fontsize=18, color="gray")
 
-    def store_name_pos_and_continue(self, text):
-        self.dataset.class_names[RIGHT] = text.upper()
-        # If both text fields have content and the user clicked SUBMIT,
-        # we are ready to continue, using the field contents as names:
-        if all(self.dataset.class_names.values()):
-            self.top_box.set_active(False)
-            self.bot_box.set_active(False)
-            self.dataset.save_class_names_to_file()
-            self.show_ready_to_record({})
+        plt.pause(0.001)
+
+        self.top_box.on_text_change(self.inspect_user_provided_names)
+        self.bot_box.on_text_change(self.inspect_user_provided_names)
+        self.top_box.on_submit(self.inspect_user_provided_names)
+        self.bot_box.on_submit(self.inspect_user_provided_names)
+        self.figure.canvas.mpl_connect(
+            "key_press_event",
+            self.store_names_if_enter_was_clicked_and_ready,
+            )
+
+    def process_current_text_box_contents(self):
+        top_name = self.top_box.text.replace("\n", " ").strip().upper()
+        bot_name = self.bot_box.text.replace("\n", " ").strip().upper()
+        return top_name, bot_name
+    
+    def inspect_user_provided_names(self, event):
+        plt.pause(0.01)
+        name1, name2 = self.process_current_text_box_contents()
+        if name1 and name2 and name1 != name2:
+            msg = "Press Enter to continue"
+            self.bot_axes.set_xlabel(msg, fontsize=18, color="gray")
+        else:
+            self.bot_axes.set_xlabel("", fontsize=18, color="gray")
+
+    def store_names_if_enter_was_clicked_and_ready(self, event):
+        name1, name2 = self.process_current_text_box_contents()
+        if event.key == "enter":
+            if name1 and name2 and name1 != name2:
+                self.dataset.class_names[LEFT] = name1
+                self.dataset.class_names[RIGHT] = name2
+                self.top_box.set_active(False)
+                self.bot_box.set_active(False)
+                self.dataset.save_class_names_to_file()
+                self.show_ready_to_record({})
+        else:
+            self.inspect_user_provided_names(None)
 
     def set_title(self, string, color="black", print_too=True):
         if print_too:
