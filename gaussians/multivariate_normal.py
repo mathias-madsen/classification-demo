@@ -16,6 +16,7 @@ class MultivariateNormal:
 
     def __init__(self, mean, cov):
         self.mean = mean
+        self.cov = cov
         self.precision = np.linalg.inv(cov)
         _, self.logabsdet_precision = np.linalg.slogdet(self.precision)
 
