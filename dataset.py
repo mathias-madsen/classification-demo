@@ -44,6 +44,14 @@ class EncodingData:
     def get_current_class_name(self):
         return self.class_names[self.currently_selected_class]
 
+    def load_class_names_from_file(self, path):
+        if not path.endswith(".csv"):
+            path = os.path.join(path, "class_indices_and_names.csv")
+        with open(path, "rt") as source:
+            for line in source.read().strip().split("\n"):
+                idx_string, name_string = line.split(",")
+                self.class_names[int(idx_string)] = name_string
+
     def compute_dimensions(self, dummy_image):
 
         dummy_encoding = self.image_encoder(dummy_image)
