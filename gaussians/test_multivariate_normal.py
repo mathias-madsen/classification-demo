@@ -38,6 +38,28 @@ def test_multivariate_normal_logpdf():
     assert np.allclose(logps2, logps3)
 
 
+def test_multivariate_normal_sumlogp():
+
+    dim = np.random.randint(1, 15)
+    mean = np.random.normal(size=dim)
+    cov = stats.wishart.rvs(dim, np.eye(dim))
+    num_vectors = np.random.randint(10, 100)
+    vectors = np.random.normal(size=(num_vectors, dim))
+
+    emp_mean = np.mean(vectors, axis=0)
+    emp_cov = np.cov(vectors.T, ddof=0).reshape([dim, dim])  # for 1x1
+    emp_count = len(vectors)
+
+    scipy_object = stats.multivariate_normal(mean, cov)
+    scipy_sum = scipy_object.logpdf(vectors).sum()
+
+    our_object = MultivariateNormal(mean, cov)
+    our_sum = our_object.sumlogp(emp_mean, emp_cov, emp_count)
+
+    assert scipy_sum.shape == our_sum.shape == ()
+    assert np.isclose(scipy_sum, our_sum)
+
+
 def test_multivariate_normal_entropy():
 
     dim = np.random.randint(1, 15)
@@ -81,6 +103,7 @@ if __name__ == "__main__":
 
     test_multivariate_normal_shapes()
     test_multivariate_normal_logpdf()
+    test_multivariate_normal_sumlogp()
     test_multivariate_normal_entropy()
     test_multivariate_normal_logp_statistics()
     test_that_Mahalanobis_is_Euclidean_for_M_equals_I()
