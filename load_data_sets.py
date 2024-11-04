@@ -1,9 +1,11 @@
 import os
+import sys
 from argparse import ArgumentParser
 from tempfile import TemporaryDirectory
 import cv2 as cv
 from tqdm import tqdm
 import json
+from inspect import signature
 
 from discriminator import BiGaussianDiscriminator
 from dataset import EncodingData
@@ -46,15 +48,78 @@ if __name__ == "__main__":
 
     parser.add_argument(
         "indir",
-        help="The folder containing the class videos",
         type=str,
+        help=("A folder containing a collection of videos organized into "
+              "two subfolders named '0' and '1'. The folder may optionally "
+              "also contain a 'class_indices_and_names.csv' file and a "
+              "'model_info.json' file with fallback choices.")
         )
 
-    parser.add_argument("--model", type=str, default="")
-    parser.add_argument("--downsampling", type=int, default=-1)
-    parser.add_argument("--outdir", type=str, default=None)
-    parser.add_argument("--class_name_0", type=str, default="")
-    parser.add_argument("--class_name_1", type=str, default="")
+    parser.add_argument(
+        "--model",
+        type=str,
+        choices=["resnet", "local", "OnnxModel"],
+        default="",
+        help=("An optional choice of model class, either the pretrained "
+              "ResNet or the pretrained ONNX file on disk. If no value is "
+              "passed, we will try to fall back on the choice made in the "
+              "'model_info.json' file. 'OnnxModel' and 'local' mean the "
+              "same thing.")
+        )
+
+    parser.add_argument(
+        "--downsampling_factor",
+        type=int,
+        default=-1,
+        help=("A downsampling factor **for the vector of encodings** "
+              "(not for the input image). If no value is passed, we "
+              "fall back on the choice in the 'model_info.json' file, "
+              "and if that fails, fall back to a default of 5.")
+        )
+
+    parser.add_argument(
+        "--keys",
+        type=str,
+        nargs="*",
+        default=None,
+        help=("A choice of outputs from the local model to include in "
+              "image encoding. The selected outputs are flattened and "
+              "concatenated into a vector which represents the image. "
+              "If no value is provided, we try to fall back on the "
+              "choice in the 'model_info.json' file, and otherwise "
+              "use the default of `['Eyx1', 'Varsyx1', 'Covyx1']`")
+        )
+
+    parser.add_argument(
+        "--outdir",
+        type=str,
+        default=None,
+        help=("An optional folder in which to save the result of this "
+              "experiment. Note that this is different from the folder "
+              "in which the data is found. If no folder is given, the "
+              "results are written into a temporary directory whose "
+              "path can be found in `dataset.rootdir`.")
+        )
+    
+    parser.add_argument(
+        "--names",
+        type=str,
+        nargs="*",
+        default=[],
+        help=("A list of two names for the two categories, as in "
+              "`--names SPOON FORK`. Will override any class names "
+              "provided in the class names file in the data folder. "
+              "A `ValueError` will be raised if not exact zero or "
+              "two names are passed.")
+        )
+    
+    parser.add_argument(
+        "--extension",
+        type=str,
+        default=".avi",
+        help=("The kind of video file to search for, as identified by "
+              "its file name extension, such as '.avi' or '.mp4'.")
+        )
 
     args, _ = parser.parse_known_args()
 
@@ -68,27 +133,34 @@ if __name__ == "__main__":
     if os.path.isfile(model_info_path):
         with open(model_info_path, "rt") as source:
             model_args = json.load(source)
-        if not args.model:
-            args.model = model_args.pop("class")
-    else:
-        assert args.model
-        model_args = {}
+            print("Loaded model info %r\n" % model_args)
+            model_class_name = model_args.pop("class")
+    
+    if args.model:
+        model_class_name = args.model  # overrides choice in file
+
+    if args.downsampling_factor:
+        model_args["downsampling_factor"] = args.downsampling_factor
+
+    if args.keys:
+        model_args["keys"] = args.keys
 
     # create image encoder:
-    if args.model == "resnet":
+    if model_class_name == "resnet":
         from image_encoding import ResNet50Encoder
-        downsampling_factor = model_args.get("downsampling_factor", 5)
-        encoder = ResNet50Encoder(downsampling_factor=downsampling_factor)
-    elif args.model == "local" or args.model == "OnnxModel":
+        model_args = {k: v for k, v in model_args.items() if k in
+                      signature(ResNet50Encoder.__init__).parameters.keys()}
+        encoder = ResNet50Encoder(**model_args)
+    elif model_class_name == "local" or model_class_name == "OnnxModel":
         from pretrained import OnnxModel
-        downsampling_factor = model_args.get("downsampling_factor", 5)
-        keys = model_args.get("keys", ["Eyx1", "Varsyx1", "Covyx1"])
-        encoder = OnnxModel(downsampling_factor=downsampling_factor, keys=keys)
+        model_args = {k: v for k, v in model_args.items() if k in
+                      signature(OnnxModel.__init__).parameters.keys()}
+        encoder = OnnxModel(**model_args)
     else:
         raise ValueError("Unrecognized model option %r" % (args.model,))
     
     # tell the user what you did (the `repr`` will also print the kwargs):
-    print("Encoder: %r\n" % encoder)
+    print("Created image encoder %r\n" % encoder)
 
     # create a temporary outdir if one isn't given:
     if not args.outdir:
@@ -99,20 +171,28 @@ if __name__ == "__main__":
     dataset = EncodingData(encoder, rootdir=args.outdir)
 
     # get or potentially overwrite class names:
-    if not args.class_name_0 or not args.class_name_1:
+    if len(args.names) == 2:
+        dataset.class_names[0] = args.names[0]
+        dataset.class_names[1] = args.names[1]
+    elif args.names:  # not length 0 (and not length 2)
+        raise ValueError("Expected either a list of either 0 or 2 "
+                         "class names, got %r" % (args.names,))
+    else:
         try:
             dataset.load_class_names_from_file(args.indir)
         except FileNotFoundError:
             raise ValueError(
-                "Found not file of stored class names and did not receive "
-                "command-line arguments '--class_name_0' or '--class_name_1'"
+                "No class names provided through the `--names` argument, "
+                "and no file of class names found in %" % (args.indir,)
                 )
-    else:
-        dataset.class_names[0] = args.model_class_0
-        dataset.class_names[1] = args.model_class_1
 
     # compile a dict of video paths with class indices:
-    pathdict = compile_video_paths_and_index_dict(args.indir)
+    pathdict = compile_video_paths_and_index_dict(args.indir, args.extension)
+
+    if not pathdict:
+        print("Found no video files with extension %r in %r." %
+              (args.extension, args.indir))
+        sys.exit(0)
 
     # and tell the user what you found:
     print("Found %s video files:" % len(pathdict))
