@@ -228,7 +228,7 @@ if __name__ == "__main__":
         stats_0 = dataset.class_episode_stats[0].copy()
         stats_0.pop(eps_idx)
         stats_1 = dataset.class_episode_stats[1]
-        discriminator.fit_with_moments(combine(stats_1), combine(stats_0))
+        discriminator.fit_with_moments(combine(stats_0), combine(stats_1))
         corrects = discriminator(test_codes) < 0.0
         k = sum(corrects)
         n = len(corrects)
@@ -245,7 +245,7 @@ if __name__ == "__main__":
         stats_0 = dataset.class_episode_stats[0]
         stats_1 = dataset.class_episode_stats[1].copy()
         stats_1.pop(eps_idx)
-        discriminator.fit_with_moments(combine(stats_1), combine(stats_0))
+        discriminator.fit_with_moments(combine(stats_0), combine(stats_1))
         corrects = discriminator(test_codes) > 0.0
         k = sum(corrects)
         n = len(corrects)

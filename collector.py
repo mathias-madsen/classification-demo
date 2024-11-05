@@ -352,8 +352,8 @@ class DataCollector:
         neg_scores_before = self.discriminator(neg_vectors)
 
         self.discriminator.fit_with_moments(
-            combine(self.dataset.class_episode_stats[RIGHT]),
             combine(self.dataset.class_episode_stats[LEFT]),
+            combine(self.dataset.class_episode_stats[RIGHT]),
             verbose=True,
             )
 

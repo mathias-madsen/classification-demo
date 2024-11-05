@@ -43,7 +43,7 @@ def test_that_discriminator_correctly_distinguishes_separable_classes():
     pos_stats = MomentsTracker.fromdata(pos_data)
     neg_stats = MomentsTracker.fromdata(neg_data)
     discriminator = BiGaussianDiscriminator()
-    discriminator.fit_with_moments(pos_stats, neg_stats)
+    discriminator.fit_with_moments(neg_stats, pos_stats)
     true_pos_rate = np.mean(discriminator(pos_data) > 0)
     assert true_pos_rate > 0.99
     true_neg_rate = np.mean(discriminator(neg_data) < 0)
@@ -55,11 +55,11 @@ def test_equivalence_of_fitting_methods():
     pos_data = np.random.normal(size=(length1, 2)) + 5.0
     neg_data = np.random.normal(size=(length2, 2)) - 5.0
     data_fitted = BiGaussianDiscriminator()
-    data_fitted.fit(pos_data, neg_data)
+    data_fitted.fit(neg_data, pos_data)
     pos_stats = MomentsTracker.fromdata(pos_data)
     neg_stats = MomentsTracker.fromdata(neg_data)
     moments_fitted = BiGaussianDiscriminator()
-    moments_fitted.fit_with_moments(pos_stats, neg_stats)
+    moments_fitted.fit_with_moments(neg_stats, pos_stats)
     assert np.allclose(data_fitted.dist_pos.mean, moments_fitted.dist_pos.mean)
     assert np.allclose(data_fitted.dist_pos.cov, moments_fitted.dist_pos.cov)
     assert np.allclose(data_fitted.dist_neg.mean, moments_fitted.dist_neg.mean)
