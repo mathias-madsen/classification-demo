@@ -1,6 +1,9 @@
 import numpy as np
 from scipy import special
 
+from gaussians.moments_tracker import MomentsTracker
+from gaussians.moments_tracker import combine
+
 
 def combine_stats(mean0, cov0, size0, mean1, cov1, size1):
     weight1 = size1 / (size1 + size0)
@@ -182,3 +185,98 @@ if __name__ == "__main__":
     
     figure.tight_layout()
     figure.show()
+
+
+def pick_best_combination(positive_stats, negative_stats, verbose=False):
+
+    dim, = positive_stats.mean.shape
+    prior_stats = MomentsTracker(np.zeros(dim), np.eye(dim), 1.0)
+
+    sepvar = marginal_logp_separate_variances(
+        positive_stats,
+        negative_stats,
+        prior_stats,
+        prior_stats,
+        1.0,
+    )
+
+    sharevar = marginal_logp_separate_variances(
+        positive_stats,
+        negative_stats,
+        prior_stats,
+        prior_stats,
+        1.0,
+    )
+
+    sepcov = marginal_logp_separate_covariances(
+        positive_stats,
+        negative_stats,
+        prior_stats,
+        prior_stats,
+        1.0,
+    )
+
+    sharecov = marginal_logp_shared_covariance(
+        positive_stats,
+        negative_stats,
+        prior_stats,
+        prior_stats,
+        1.0,
+    )
+
+    winner = np.argmax([sharevar, sepvar, sharecov, sepcov])
+
+    if verbose:
+
+        print("Marginal log-likelihoods:")
+        print("-------------------------")
+        print("shared diagonal matrix:   ", sharevar)
+        print("two diagonal matrices:    ", sepvar)
+        print("shared covariance matrix: ", sharecov)
+        print("two covariance matrices:  ", sepcov)
+        print()
+
+        if winner == 0:
+            print("Best model: a shared diagonal matrix.\n")
+        elif winner == 1:
+            print("Best model: two separate diagonal matrices.\n")
+        elif winner == 2:
+            print("Best model: a shared covariance matrix.\n")
+        elif winner == 3:
+            print("Best model: two separate covariance matrices.\n")
+        else:
+            raise Exception("Unpected inddex %s" % (winner,))
+
+    wpos = positive_stats.count / (positive_stats.count + negative_stats.count)
+    wneg = negative_stats.count / (positive_stats.count + negative_stats.count)
+    shared_cov = wpos*positive_stats.cov + wneg*negative_stats.cov
+
+    if winner == 0:
+        poscov = np.diag(shared_cov.diagonal())
+        negcov = np.diag(shared_cov.diagonal())
+    elif winner == 1:
+        poscov = np.diag(positive_stats.cov.diagonal())
+        negcov = np.diag(negative_stats.cov.diagonal())
+    elif winner == 2:
+        poscov = shared_cov.copy()
+        negcov = shared_cov.copy()
+    elif winner == 3:
+        poscov = positive_stats.cov
+        negcov = negative_stats.cov
+    else:
+        raise Exception("Unpected inddex %s" % (winner,))
+
+    post_pos = combine([
+        MomentsTracker(positive_stats.mean, poscov, positive_stats.count),
+        MomentsTracker(np.zeros(dim), np.eye(dim), 1.0),
+    ])
+
+    post_neg = combine([
+        MomentsTracker(negative_stats.mean, negcov, negative_stats.count),
+        MomentsTracker(np.zeros(dim), np.eye(dim), 1.0),
+    ])
+
+    assert not np.isinf(np.linalg.slogdet(post_pos.cov)[1])
+    assert not np.isinf(np.linalg.slogdet(post_neg.cov)[1])
+
+    return post_pos, post_neg
