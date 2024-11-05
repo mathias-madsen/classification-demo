@@ -41,7 +41,7 @@ class BiGaussianDiscriminator:
         with np.load(path) as archive:
             means = archive["means"]
             covs = archive["covs"]
-            counts = archive["counts"]
+            counts = archive.get("counts", (1.0, 1.0))
         stats_neg = MomentsTracker(means[0], covs[0], counts[0])
         stats_pos = MomentsTracker(means[1], covs[1], counts[1])
         self.set_stats(stats_neg, stats_pos)
