@@ -8,7 +8,7 @@ from encoding.image_encoding import ResNet50Encoder
 
 
 folder = os.path.dirname(os.path.abspath(__file__))
-names_file = os.path.join(folder, "imagenet_classes.txt")
+names_file = os.path.join(folder, "encoding/imagenet_classes.txt")
 with open(names_file, "r") as f:
     IMAGENET_CLASS_NAMES = [s.strip() for s in f.readlines()]
 
