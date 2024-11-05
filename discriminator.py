@@ -144,13 +144,14 @@ class BiGaussianDiscriminator:
         means = np.stack([m.mean for m in stats_list], axis=0)
         covs = np.stack([m.cov for m in stats_list], axis=0)
         counts = np.stack([m.count for m in stats_list], axis=0)
-        np.savez(path, means=means, covs=covs, counts=counts)
+        np.savez(path, means=means, covs=covs, counts=counts, version=1)
 
     def load(self, path):
         with np.load(path) as archive:
             means = archive["means"]
             covs = archive["covs"]
             counts = archive["counts"]
+            assert archive["version"] == 1
         stats_neg = MomentsTracker(means[0], covs[0], counts[0])
         stats_pos = MomentsTracker(means[1], covs[1], counts[1])
         self.fit_with_moments(stats_neg, stats_pos)
