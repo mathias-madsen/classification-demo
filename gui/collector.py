@@ -398,7 +398,7 @@ class DataCollector:
 
         right_accuracies = []
         for idx, pos, neg in self.dataset.iter_train_stats_with_holdout(RIGHT):
-            self.discriminator.fit_with_moments(pos, neg)
+            self.discriminator.fit_with_moments(neg, pos)
             test_codes = self.dataset.class_episode_codes[RIGHT][idx]
             true_positives = self.discriminator.evaluate(test_codes, RIGHT)
             right_accuracies.append(true_positives)
@@ -409,7 +409,7 @@ class DataCollector:
 
         left_accuracies = []
         for idx, pos, neg in self.dataset.iter_train_stats_with_holdout(LEFT):
-            self.discriminator.fit_with_moments(pos, neg)
+            self.discriminator.fit_with_moments(neg, pos)
             test_codes = self.dataset.class_episode_codes[LEFT][idx]
             true_negatives = self.discriminator.evaluate(test_codes, LEFT)
             left_accuracies.append(true_negatives)
