@@ -424,6 +424,10 @@ class DataCollector:
               (self.dataset.class_names[LEFT], accuracy_left))
         print()
 
+        # clear the crossval bar and make space for the fit results screen:
+        self.figure.clf()
+        plt.pause(0.001)
+
         left_neps = len(self.dataset.class_episode_stats[LEFT])
         right_neps = len(self.dataset.class_episode_stats[RIGHT])
         left_nframes = sum(m.count for m in self.dataset.class_episode_stats[LEFT])
