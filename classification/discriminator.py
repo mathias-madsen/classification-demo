@@ -1,7 +1,6 @@
 import numpy as np
 
 from gaussians.multivariate_normal import MultivariateNormal
-from gaussians.moments_tracker import MomentsTracker
 
 
 class BiGaussianDiscriminator:
@@ -11,8 +10,8 @@ class BiGaussianDiscriminator:
         self.dist_neg = None
     
     def set_stats(self, neg_stats, pos_stats):
-        self.dist_pos = MultivariateNormal(pos_stats.mean, pos_stats.cov)
-        self.dist_neg = MultivariateNormal(neg_stats.mean, neg_stats.cov)
+        self.dist_pos = MultivariateNormal(*pos_stats)
+        self.dist_neg = MultivariateNormal(*neg_stats)
 
     def __call__(self, x):
         if self.dist_pos is None:
@@ -42,8 +41,8 @@ class BiGaussianDiscriminator:
             means = archive["means"]
             covs = archive["covs"]
             counts = archive.get("counts", (1.0, 1.0))
-        stats_neg = MomentsTracker(means[0], covs[0], counts[0])
-        stats_pos = MomentsTracker(means[1], covs[1], counts[1])
+        stats_neg = means[0], covs[0], counts[0]
+        stats_pos = means[1], covs[1], counts[1]
         self.set_stats(stats_neg, stats_pos)
 
     @classmethod

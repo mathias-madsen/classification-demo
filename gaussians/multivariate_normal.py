@@ -12,6 +12,21 @@ def squared_mahalanobis_norm(v, M):
 
 
 class MultivariateNormal:
+    """ Multivariate normal distribution.
+
+    Attributes:
+    -----------
+    mean : array of shape [D]
+        The location parameter of the distribution, and its mean.
+    cov : array of shape [D, D]
+        The covariance matrix of the distribution.
+    precision : array of shape [D, D]
+        The inverse of the covariance matrix, which is a useful
+        representation for many practical purposes.
+    logabsdet_precision : float
+        The logarithm of the determinant of the precision matrix,
+        which is a constant that appears in many relevant formulas.
+    """
 
     def __init__(self, mean, cov, count=1.0):
         self.mean = mean
