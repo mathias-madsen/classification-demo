@@ -412,16 +412,15 @@ class DataCollector:
         self.discriminator.save(outpath)
 
         # FYI, the training accuracy:
-
-        test_right = np.concatenate(self.dataset.class_episode_codes[RIGHT], axis=0)
-        accuracy_right = np.mean(self.discriminator(test_right) > 1e-5, axis=0)
-        print("Training accuracy %r: %.5f" %
-              (self.dataset.class_names[RIGHT], accuracy_right))
-
-        test_left = np.concatenate(self.dataset.class_episode_codes[LEFT], axis=0)
-        accuracy_left = np.mean(self.discriminator(test_left) < -1e-5, axis=0)
-        print("Training accuracy %r: %.5f" %
-              (self.dataset.class_names[LEFT], accuracy_left))
+        for idx in [LEFT, RIGHT]:
+            name = self.dataset.class_names[idx]
+            eps_codes = self.dataset.class_episode_codes[idx]
+            concat_eps_codes = np.concatenate(eps_codes, axis=0)
+            corrects = self.discriminator.evaluate(concat_eps_codes, idx)
+            k = sum(corrects)
+            n = len(corrects)
+            print("Training accuracy %r: %s/%s = %.1f pct" %
+                (name, k, n, 100.0 * k / n))
         print()
 
         # clear the crossval bar and make space for the fit results screen:
