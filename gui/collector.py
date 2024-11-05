@@ -390,9 +390,6 @@ class DataCollector:
         assert (sum(len(vs) for vs in left_latent) ==
                 sum(m.count for m in left_stats))
 
-        right_crossval_accuracy = None
-        left_crossval_accuracy = None
-
         num_steps = self.dataset.compute_num_cross_val_steps()
         load_bar = LoadBar(self.figure, num_steps)
 
@@ -401,7 +398,6 @@ class DataCollector:
             k0 += k
             n0 += n
             load_bar.update()
-        left_crossval_accuracy = None if n0 < 1 else k0 / n0
 
         if n0 > 0:
             print("LEFT CROSSVAL ACCURACY: %s/%s = %.1f pct" %
@@ -412,7 +408,6 @@ class DataCollector:
             k1 += k
             n1 += n
             load_bar.update()
-        right_crossval_accuracy = None if n1 < 1 else k1 / n1
 
         if n1 > 0:
             print("RIGHT CROSSVAL ACCURACY: %s/%s = %.1f pct" %
