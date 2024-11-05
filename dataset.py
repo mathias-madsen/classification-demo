@@ -5,6 +5,7 @@ import json
 import numpy as np
 
 from gaussians.moments_tracker import MomentsTracker, combine
+from gaussians import marginal_log_likelihoods as likes
 
 
 def invent_name():
@@ -134,6 +135,38 @@ class EncodingData:
 
         self.currently_selected_class = None
         del self.current_image_list
+
+    def cross_validate_stats(self, class_index):
+
+        stats_list = self.class_episode_stats[class_index]
+        name = self.class_names[class_index]
+        
+        if not stats_list:
+            print("Cannot cross-validate empty stats list "
+                  "(index %s, name %r)" % (class_index, name))
+            return None, None
+
+        if len(stats_list) == 1:
+            print("Cannot cross-validate singleton stats list "
+                  "(index %s, name %r)" % (class_index, name))
+            return None, None
+
+        dim, = stats_list[0].mean.shape
+        prior = MomentsTracker(np.zeros(dim), np.eye(dim), 1.0)
+        all_uncorrelated = []
+        all_correlated = []
+        for i, test_stats in enumerate(stats_list):
+            train_stats = stats_list.copy()
+            train_stats.pop(i)
+            train_stats = combine(train_stats)
+            train_stats = combine([train_stats, prior])
+            df = train_stats.count + 1.0
+            uncr = likes.uncorrelated_loglikes(*test_stats, *train_stats, df)
+            all_uncorrelated.append(uncr)
+            corr = likes.correlated_loglikes(*test_stats, *train_stats, df)
+            all_correlated.append(corr)
+        
+        return sum(all_correlated), sum(all_uncorrelated)
 
     def discard_recording(self):
         self.video_writer.release()
