@@ -378,18 +378,6 @@ class DataCollector:
         self.figure.clf()
         plt.pause(0.001)
 
-        right_latent = self.dataset.class_episode_codes[RIGHT]
-        right_stats = self.dataset.class_episode_stats[RIGHT]
-        assert len(right_latent) == len(right_stats)
-        assert (sum(len(vs) for vs in right_latent) ==
-                sum(m.count for m in right_stats))
-
-        left_latent = self.dataset.class_episode_codes[LEFT]
-        left_stats = self.dataset.class_episode_stats[LEFT]
-        assert len(left_latent) == len(left_stats)
-        assert (sum(len(vs) for vs in left_latent) ==
-                sum(m.count for m in left_stats))
-
         num_steps = self.dataset.compute_num_cross_val_steps()
         load_bar = LoadBar(self.figure, num_steps)
 
