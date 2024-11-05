@@ -13,8 +13,9 @@ def squared_mahalanobis_norm(v, M):
 
 class MultivariateNormal:
 
-    def __init__(self, mean, cov):
+    def __init__(self, mean, cov, count=1.0):
         self.mean = mean
+        self.count = count  # so we can instantiate with a MomentsTracker
         if np.shape(mean) != ():
             self.dim, = self.mean.shape
             self.cov = cov.reshape([self.dim, self.dim])

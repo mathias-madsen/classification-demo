@@ -7,6 +7,7 @@ import numpy as np
 from gaussians.moments_tracker import MomentsTracker, combine
 from gaussians import marginal_log_likelihoods as likes
 from classification.discriminator import BiGaussianDiscriminator
+from gaussians.marginal_log_likelihoods import pick_best_combination
 
 
 def invent_name():
@@ -193,7 +194,8 @@ class EncodingData:
             stats_0 = self.class_episode_stats[0].copy()
             stats_0.pop(eps_idx)
             stats_1 = self.class_episode_stats[1]
-            discriminator.fit_with_moments(combine(stats_0), combine(stats_1))
+            stats = pick_best_combination(combine(stats_0), combine(stats_1))
+            discriminator.set_stats(*stats)
             corrects = discriminator.evaluate(test_codes, 0)
             yield sum(corrects), len(corrects)
 
@@ -206,7 +208,8 @@ class EncodingData:
             stats_0 = self.class_episode_stats[0]
             stats_1 = self.class_episode_stats[1].copy()
             stats_1.pop(eps_idx)
-            discriminator.fit_with_moments(combine(stats_0), combine(stats_1))
+            stats = pick_best_combination(combine(stats_0), combine(stats_1))
+            discriminator.set_stats(*stats)
             corrects = discriminator.evaluate(test_codes, 1)
             yield sum(corrects), len(corrects)
     

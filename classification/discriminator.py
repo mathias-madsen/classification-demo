@@ -2,35 +2,17 @@ import numpy as np
 
 from gaussians.multivariate_normal import MultivariateNormal
 from gaussians.moments_tracker import MomentsTracker
-from gaussians.marginal_log_likelihoods import pick_best_combination
 
 
 class BiGaussianDiscriminator:
 
     def __init__(self):
-        # the raw empirical stats of the data used to train the class models:
-        self.stats_pos = None
-        self.stats_neg = None
-        # the distributions when taking into account the prior and the relative
-        # likelihoods of the different model variants in the light of the data:
         self.dist_pos = None
         self.dist_neg = None
     
-    def fit(self, negative_examples, positive_examples, verbose=False):
-        self.stats_pos = MomentsTracker.fromdata(positive_examples)
-        self.stats_neg = MomentsTracker.fromdata(negative_examples)
-        self.fit_with_moments(self.stats_neg, self.stats_pos, verbose=verbose)
-
-    def fit_with_moments(self, negative_stats, positive_stats, verbose=False):
-        self.stats_pos = positive_stats
-        self.stats_neg = negative_stats
-        post_pos, post_neg = pick_best_combination(
-            positive_stats,
-            negative_stats,
-            verbose=verbose,
-            )
-        self.dist_pos = MultivariateNormal(post_pos.mean, post_pos.cov)
-        self.dist_neg = MultivariateNormal(post_neg.mean, post_neg.cov)
+    def set_stats(self, neg_stats, pos_stats):
+        self.dist_pos = MultivariateNormal(pos_stats.mean, pos_stats.cov)
+        self.dist_neg = MultivariateNormal(neg_stats.mean, neg_stats.cov)
 
     def __call__(self, x):
         if self.dist_pos is None:
@@ -44,26 +26,25 @@ class BiGaussianDiscriminator:
         return case_0 + case_1
     
     def save(self, path):
-        if self.stats_neg is None or self.stats_pos is None:
-            raise ValueError("No stats to save")
-        stats_list = [
-            self.stats_neg,
-            self.stats_pos,
+        if self.dist_pos is None or self.dist_neg is None:
+            raise ValueError("No parameters to save yet")
+        dist_list = [
+            self.dist_neg,
+            self.dist_pos,
             ]
-        means = np.stack([m.mean for m in stats_list], axis=0)
-        covs = np.stack([m.cov for m in stats_list], axis=0)
-        counts = np.stack([m.count for m in stats_list], axis=0)
-        np.savez(path, means=means, covs=covs, counts=counts, version=1)
+        means = np.stack([m.mean for m in dist_list], axis=0)
+        covs = np.stack([m.cov for m in dist_list], axis=0)
+        counts = np.stack([m.count for m in dist_list], axis=0)
+        np.savez(path, means=means, covs=covs, counts=counts)
 
     def load(self, path):
         with np.load(path) as archive:
             means = archive["means"]
             covs = archive["covs"]
             counts = archive["counts"]
-            assert archive["version"] == 1
         stats_neg = MomentsTracker(means[0], covs[0], counts[0])
         stats_pos = MomentsTracker(means[1], covs[1], counts[1])
-        self.fit_with_moments(stats_neg, stats_pos)
+        self.set_stats(stats_neg, stats_pos)
 
     @classmethod
     def fromsaved(self, path):

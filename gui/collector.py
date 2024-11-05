@@ -7,6 +7,8 @@ from matplotlib.widgets import Button, TextBox
 from classification.dataset import EncodingData
 from classification.discriminator import BiGaussianDiscriminator
 from gaussians.moments_tracker import combine
+from gaussians.marginal_log_likelihoods import pick_best_combination
+
 
 
 LEFT = 0
@@ -352,11 +354,10 @@ class DataCollector:
         pos_scores_before = self.discriminator(pos_vectors)
         neg_scores_before = self.discriminator(neg_vectors)
 
-        self.discriminator.fit_with_moments(
-            combine(self.dataset.class_episode_stats[LEFT]),
-            combine(self.dataset.class_episode_stats[RIGHT]),
-            verbose=True,
-            )
+        neg = combine(self.dataset.class_episode_stats[LEFT])
+        pos = combine(self.dataset.class_episode_stats[RIGHT])
+        neg, pos = pick_best_combination(neg, pos, verbose=True)
+        self.discriminator.set_stats(neg, pos)
 
         pos_scores_after = self.discriminator(pos_vectors)
         neg_scores_after = self.discriminator(neg_vectors)
