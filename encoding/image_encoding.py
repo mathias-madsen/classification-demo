@@ -61,16 +61,3 @@ class ResNet50Encoder:
                 return logits, encoding
             else:
                 return encoding
-
-
-def encode(uint8_rgb_image):
-    """ Compute a latent vector for a raw RGB image. """
-
-    # the preproceesor expects `PIL.Image`s:
-    rgb_image = Image.fromarray(uint8_rgb_image[:, :, ::-1])
-    input_tensor = preprocess(rgb_image)
-    with torch.no_grad():
-        _, encoding = model(input_tensor.unsqueeze(0))
-        return encoding.squeeze(0).numpy()
-
-
