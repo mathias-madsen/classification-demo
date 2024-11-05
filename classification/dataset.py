@@ -185,6 +185,9 @@ class EncodingData:
         return sum(n_eps if n_eps >= 2 else 0 for n_eps in lengths)
 
     def crossval_accuracy_0(self):
+        len0, len1 = [len(v) for v in self.class_episode_codes.values()]
+        if len0 < 2 or len1 < 1:
+            return
         discriminator = BiGaussianDiscriminator()
         for eps_idx, test_codes in enumerate(self.class_episode_codes[0]):
             stats_0 = self.class_episode_stats[0].copy()
@@ -195,6 +198,9 @@ class EncodingData:
             yield sum(corrects), len(corrects)
 
     def crossval_accuracy_1(self):
+        len0, len1 = [len(v) for v in self.class_episode_codes.values()]
+        if len0 < 1 or len1 < 2:
+            return
         discriminator = BiGaussianDiscriminator()
         for eps_idx, test_codes in enumerate(self.class_episode_codes[1]):
             stats_0 = self.class_episode_stats[0]
