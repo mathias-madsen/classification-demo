@@ -396,30 +396,30 @@ class DataCollector:
         num_steps = self.dataset.compute_num_cross_val_steps()
         load_bar = LoadBar(self.figure, num_steps)
 
-        right_accuracies = []
-        for idx, pos, neg in self.dataset.iter_train_stats_with_holdout(RIGHT):
-            self.discriminator.fit_with_moments(neg, pos)
-            test_codes = self.dataset.class_episode_codes[RIGHT][idx]
-            true_positives = self.discriminator.evaluate(test_codes, RIGHT)
-            right_accuracies.append(true_positives)
+        k0, n0 = 0, 0  # totals for the 'left' class
+        for k, n in self.dataset.crossval_accuracy(0):
+            k0 += k
+            n0 += n
             load_bar.update()
-        if right_accuracies:
-            right_crossval_accuracy = np.mean(np.concatenate(right_accuracies))
-            print("RIGHT CROSSVAL ACCURACY:", right_crossval_accuracy)
+        left_crossval_accuracy = None if n0 < 1 else k0 / n0
 
-        left_accuracies = []
-        for idx, pos, neg in self.dataset.iter_train_stats_with_holdout(LEFT):
-            self.discriminator.fit_with_moments(neg, pos)
-            test_codes = self.dataset.class_episode_codes[LEFT][idx]
-            true_negatives = self.discriminator.evaluate(test_codes, LEFT)
-            left_accuracies.append(true_negatives)
+        if n0 > 0:
+            print("LEFT CROSSVAL ACCURACY: %s/%s = %.1f pct" %
+                  (k0, n0, 100.0 * k0 / n0))
+
+        k1, n1 = 0, 0  # totals for the 'right' class
+        for k, n in self.dataset.crossval_accuracy(1):
+            k1 += k
+            n1 += n
             load_bar.update()
-        if left_accuracies:
-            left_crossval_accuracy = np.mean(np.concatenate(left_accuracies))
-            print("LEFT CROSSVAL ACCURACY:", left_crossval_accuracy)
+        right_crossval_accuracy = None if n1 < 1 else k1 / n1
 
-        if right_accuracies or left_accuracies:
-            print("")
+        if n1 > 0:
+            print("RIGHT CROSSVAL ACCURACY: %s/%s = %.1f pct" %
+                  (k1, n1, 100.0 * k1 / n1))
+
+        if n0 > 0 or n1 > 0:
+            print("")  # blank line below the printed accuracies
 
         neg = combine(self.dataset.class_episode_stats[LEFT])
         pos = combine(self.dataset.class_episode_stats[RIGHT])
@@ -459,9 +459,9 @@ class DataCollector:
         text_axes.text(x=0, y=4.0, s=self.dataset.class_names[LEFT],
                        color=LEFT_COLOR, fontweight="bold", fontsize=36)
 
-        if left_crossval_accuracy is not None:
-            title = ("Cross-validated accuracy: %.1f pct" %
-                    (100 * left_crossval_accuracy,))
+        if n0 > 0:
+            title = ("Cross-validated accuracy: %s/%s = %.1f pct" %
+                    (k0, n0, 100 * k0 / n0))
             text_axes.text(x=0, y=3.5, s=title, fontsize=24,
                            fontweight="bold", color=LEFT_COLOR)
         else:
@@ -477,9 +477,9 @@ class DataCollector:
         text_axes.text(x=0, y=2.0, s=self.dataset.class_names[RIGHT],
                        color=RIGHT_COLOR, fontweight="bold", fontsize=36)
 
-        if right_crossval_accuracy is not None:
-            title = ("Cross-validated accuracy: %.1f pct" %
-                    (100 * right_crossval_accuracy,))
+        if n1 > 0:
+            title = ("Cross-validated accuracy: %s/%s = %.1f pct" %
+                    (k1, n1, 100 * k1 / n1))
             text_axes.text(x=0, y=1.5, s=title, fontsize=24,
                            fontweight="bold", color=RIGHT_COLOR)
         else:
