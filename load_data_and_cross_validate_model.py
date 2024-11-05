@@ -219,43 +219,22 @@ if __name__ == "__main__":
 
     # once you've collected all the codes, cross-validate:
 
-    discriminator = BiGaussianDiscriminator()
-
-    print("CROSS-VALIDING CLASS %r\n" % dataset.class_names[0])
-    k0 = 0
-    n0 = 0
-    for eps_idx, test_codes in enumerate(dataset.class_episode_codes[0]):
-        stats_0 = dataset.class_episode_stats[0].copy()
-        stats_0.pop(eps_idx)
-        stats_1 = dataset.class_episode_stats[1]
-        discriminator.fit_with_moments(combine(stats_0), combine(stats_1))
-        corrects = discriminator(test_codes) < 0.0
-        k = sum(corrects)
-        n = len(corrects)
-        print("Episode %r: %s/%s = %.1f pct" % (eps_idx, k, n, 100 * k / n))
-        k0 += k
-        n0 += n
-    print("Class average: %s/%s = %.1f pct" % (k0, n0, 100 * k0 / n0))
-    print()
-
-    print("CROSS-VALIDING CLASS %r\n" % dataset.class_names[1])
-    k1 = 0
-    n1 = 0
-    for eps_idx, test_codes in enumerate(dataset.class_episode_codes[1]):
-        stats_0 = dataset.class_episode_stats[0]
-        stats_1 = dataset.class_episode_stats[1].copy()
-        stats_1.pop(eps_idx)
-        discriminator.fit_with_moments(combine(stats_0), combine(stats_1))
-        corrects = discriminator(test_codes) > 0.0
-        k = sum(corrects)
-        n = len(corrects)
-        print("Episode %r: %s/%s = %.1f pct" % (eps_idx, k, n, 100 * k / n))
-        k1 += k
-        n1 += n
-    print("Class average: %s/%s = %.1f pct" % (k1, n1, 100 * k1 / n1))
-    print()
-
-    k = k0 + k1
-    n = n0 + n1
-    print("Grand average: %s/%s = %.1f pct" % (k, n, 100 * k / n))
-    print()
+    total_k = 0
+    total_n = 0
+    for class_index in range(2):
+        class_name = dataset.class_names[class_index]
+        print("CROSS-VALIDATING CLASS %r:\n" % class_name)
+        sum_k = 0
+        sum_n = 0
+        iterator = dataset.crossval_accuracy(class_index)
+        for eps, (k, n) in enumerate(iterator):
+            print("Episode %r: %s/%s = %.1f pct" % (eps, k, n, 100.0 * k / n))
+            sum_k += k
+            sum_n += n
+        print()
+        print("Grand accuracy for class %r: %s/%s = %.1f pct\n" %
+            (class_name, sum_k, sum_n, 100.0 * sum_k / sum_n))
+        total_k += sum_k
+        total_n += sum_n
+    print("Grand accuracy for both classes: %s/%s = %.1f pct\n" %
+          (total_k, total_n, 100.0 * total_k / total_n))

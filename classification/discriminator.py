@@ -38,6 +38,11 @@ class BiGaussianDiscriminator:
         else:
             return self.dist_pos.logpdf(x) - self.dist_neg.logpdf(x)
     
+    def evaluate(self, vectors, labels):
+        case_0 = (self(vectors) < -1e-5) * (labels == 0)
+        case_1 = (self(vectors) > +1e-5) * (labels == 1)
+        return case_0 + case_1
+    
     def save(self, path):
         if self.stats_neg is None or self.stats_pos is None:
             raise ValueError("No stats to save")

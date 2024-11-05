@@ -6,6 +6,7 @@ import numpy as np
 
 from gaussians.moments_tracker import MomentsTracker, combine
 from gaussians import marginal_log_likelihoods as likes
+from classification.discriminator import BiGaussianDiscriminator
 
 
 def invent_name():
@@ -136,7 +137,18 @@ class EncodingData:
         self.currently_selected_class = None
         del self.current_image_list
 
-    def cross_validate_stats(self, class_index):
+    def discard_recording(self):
+        self.video_writer.release()
+        os.remove(self.current_video_path)
+
+    def num_examples_per_class(self):
+        return {self.class_names[idx]: sum(len(e) for e in collection)
+                for idx, collection in self.class_episode_codes.items()}
+
+    def all_classes_nonempty(self):
+        return all(n >= 1 for n in self.num_examples_per_class().values())
+
+    def crossval_logp(self, class_index):
 
         stats_list = self.class_episode_stats[class_index]
         name = self.class_names[class_index]
@@ -167,17 +179,38 @@ class EncodingData:
             all_correlated.append(corr)
         
         return sum(all_correlated), sum(all_uncorrelated)
+    
+    def num_cross_val_steps(self):
+        lengths = [len(v) for v in self.class_episode_stats.values()]
+        return sum(n_eps if n_eps >= 2 else 0 for n_eps in lengths)
 
-    def discard_recording(self):
-        self.video_writer.release()
-        os.remove(self.current_video_path)
+    def crossval_accuracy_0(self):
+        discriminator = BiGaussianDiscriminator()
+        for eps_idx, test_codes in enumerate(self.class_episode_codes[0]):
+            stats_0 = self.class_episode_stats[0].copy()
+            stats_0.pop(eps_idx)
+            stats_1 = self.class_episode_stats[1]
+            discriminator.fit_with_moments(combine(stats_0), combine(stats_1))
+            corrects = discriminator.evaluate(test_codes, 0)
+            yield sum(corrects), len(corrects)
 
-    def num_examples_per_class(self):
-        return {self.class_names[idx]: sum(len(e) for e in collection)
-                for idx, collection in self.class_episode_codes.items()}
-
-    def all_classes_nonempty(self):
-        return all(n >= 1 for n in self.num_examples_per_class().values())
+    def crossval_accuracy_1(self):
+        discriminator = BiGaussianDiscriminator()
+        for eps_idx, test_codes in enumerate(self.class_episode_codes[1]):
+            stats_0 = self.class_episode_stats[0]
+            stats_1 = self.class_episode_stats[1].copy()
+            stats_1.pop(eps_idx)
+            discriminator.fit_with_moments(combine(stats_0), combine(stats_1))
+            corrects = discriminator.evaluate(test_codes, 1)
+            yield sum(corrects), len(corrects)
+    
+    def crossval_accuracy(self, class_index):
+        if class_index == 0:
+            return self.crossval_accuracy_0()
+        elif class_index == 1:
+            return self.crossval_accuracy_1()
+        else:
+            raise ValueError("Unexpected class index %r" % class_index)
 
 
 if __name__ == "__main__":
