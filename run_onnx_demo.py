@@ -4,7 +4,7 @@ import cv2 as cv
 import torch
 from PIL import Image
 from matplotlib import pyplot as plt
-from pretrained import OnnxModel
+from encoding.pretrained import OnnxModel
 
 
 if __name__ == "__main__":

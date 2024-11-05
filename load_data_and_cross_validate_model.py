@@ -7,8 +7,8 @@ from tqdm import tqdm
 import json
 from inspect import signature
 
-from discriminator import BiGaussianDiscriminator
-from dataset import EncodingData
+from classification.discriminator import BiGaussianDiscriminator
+from classification.dataset import EncodingData
 from gaussians.moments_tracker import combine
 
 
@@ -147,12 +147,12 @@ if __name__ == "__main__":
 
     # create image encoder:
     if model_class_name == "resnet":
-        from image_encoding import ResNet50Encoder
+        from encoding.image_encoding import ResNet50Encoder
         model_args = {k: v for k, v in model_args.items() if k in
                       signature(ResNet50Encoder.__init__).parameters.keys()}
         encoder = ResNet50Encoder(**model_args)
     elif model_class_name == "local" or model_class_name == "OnnxModel":
-        from pretrained import OnnxModel
+        from encoding.pretrained import OnnxModel
         model_args = {k: v for k, v in model_args.items() if k in
                       signature(OnnxModel.__init__).parameters.keys()}
         encoder = OnnxModel(**model_args)

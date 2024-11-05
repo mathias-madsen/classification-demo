@@ -4,7 +4,7 @@ import cv2 as cv
 import torch
 from PIL import Image
 from matplotlib import pyplot as plt
-from image_encoding import ResNet50Encoder
+from encoding.image_encoding import ResNet50Encoder
 
 
 folder = os.path.dirname(os.path.abspath(__file__))

@@ -3,8 +3,8 @@ from matplotlib import pyplot as plt
 from IPython.terminal.embed import InteractiveShellEmbed
 from tempfile import TemporaryDirectory
 
-from discriminator import BiGaussianDiscriminator
-from collector import DataCollector
+from classification.discriminator import BiGaussianDiscriminator
+from gui.collector import DataCollector
 
 
 if __name__ == "__main__":
@@ -25,19 +25,19 @@ if __name__ == "__main__":
 
     print("Setting up camera . . .")
     if type(args.camera) == int:
-        from opencv_camera import OpenCVCamera
+        from gui.opencv_camera import OpenCVCamera
         camera = OpenCVCamera(args.camera, downsampling_factor=4)
     elif args.camera.lower() == "ximea":
-        from ximea_camera import XimeaCamera
+        from gui.ximea_camera import XimeaCamera
         camera = XimeaCamera(downsampling_factor=4)
     else:
         raise ValueError("Unrecognized camera option %r" % (args.camera,))
 
     if args.model == "resnet":
-        from image_encoding import ResNet50Encoder
+        from encoding.image_encoding import ResNet50Encoder
         encoder = ResNet50Encoder(downsampling_factor=args.downsampling)
     elif args.model == "local":
-        from pretrained import OnnxModel
+        from encoding.pretrained import OnnxModel
         encoder = OnnxModel(downsampling_factor=args.downsampling)
     else:
         raise ValueError("Unrecognized model option %r" % (args.model,))
