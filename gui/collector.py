@@ -8,6 +8,7 @@ from classification.dataset import EncodingData
 from classification.discriminator import BiGaussianDiscriminator
 from gaussians.moments_tracker import combine
 
+
 LEFT = 0
 RIGHT = 1
 
@@ -43,7 +44,7 @@ class DataCollector:
 
         self.time_of_last_image_capture = -float("inf")
 
-        self.discriminator = discriminator
+        self.discriminator: BiGaussianDiscriminator = discriminator
 
         self.dataset = EncodingData(image_encoder, rootdir)
         self.dataset.save_model_information()
