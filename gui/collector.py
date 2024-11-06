@@ -1,3 +1,4 @@
+import os
 import numpy as np
 from time import perf_counter
 from matplotlib.patches import Rectangle
@@ -358,6 +359,8 @@ class DataCollector:
         pos = combine(self.dataset.class_episode_stats[RIGHT])
         neg, pos = pick_best_combination(neg, pos, verbose=True)
         self.discriminator.set_stats(neg, pos)
+        outpath = os.path.join(self.dataset.rootdir, "discriminator.npz")
+        self.discriminator.save(outpath)
 
         pos_scores_after = self.discriminator(pos_vectors)
         neg_scores_after = self.discriminator(neg_vectors)
