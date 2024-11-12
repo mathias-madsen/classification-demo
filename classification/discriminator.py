@@ -8,22 +8,36 @@ class BiGaussianDiscriminator:
     def __init__(self):
         self.dist_pos = None
         self.dist_neg = None
+        self.n_stds = 30.0  # for assigning prob to 'neither'
     
     def set_stats(self, neg_stats, pos_stats):
         self.dist_pos = MultivariateNormal(*pos_stats)
         self.dist_neg = MultivariateNormal(*neg_stats)
 
+    def smallest_expected_logprob(self):
+        pos_bound = (self.dist_pos.mean_logp() -
+                     self.n_stds * self.dist_pos.std_logp())
+        neg_bound = (self.dist_neg.mean_logp() -
+                     self.n_stds * self.dist_neg.std_logp())
+        return min(pos_bound, neg_bound)
+
     def __call__(self, x):
-        if self.dist_pos is None:
-            return np.zeros_like(x[..., 0])
-        else:
-            return self.dist_pos.logpdf(x) - self.dist_neg.logpdf(x)
+        pos = self.dist_pos.logpdf(x)
+        neg = self.dist_neg.logpdf(x)
+        neither_logprob = self.smallest_expected_logprob()
+        neither = neither_logprob * np.ones_like(pos)
+        logprobs = np.array([neg, pos, neither])
+        logprobs -= np.max(logprobs)
+        logsumexp = np.log(np.sum(np.exp(logprobs)))
+        return logprobs - logsumexp
     
-    def evaluate(self, vectors, labels):
-        case_0 = (self(vectors) < -1e-5) * (labels == 0)
-        case_1 = (self(vectors) > +1e-5) * (labels == 1)
-        return case_0 + case_1
+    def evaluate(self, test_codes, labels):
+        return np.argmax(self(test_codes), axis=0) == labels
     
+    def classify(self, vectors):
+        """ Return a class index (0 or 1), or 2 for neither. """
+        return np.argmax(self(vectors), axis=0)
+
     def save(self, path):
         if self.dist_pos is None or self.dist_neg is None:
             raise ValueError("No parameters to save yet")
@@ -46,7 +60,7 @@ class BiGaussianDiscriminator:
         self.set_stats(stats_neg, stats_pos)
 
     @classmethod
-    def fromsaved(self, path):
-        instance = BiGaussianDiscriminator()
+    def fromsaved(cls, path):
+        instance = cls()
         instance.load(path)
         return instance
