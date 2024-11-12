@@ -122,6 +122,9 @@ if __name__ == "__main__":
         )
 
     args, _ = parser.parse_known_args()
+    
+    model_class_name = None
+    model_args = {}
 
     print("Received arguments\n")
     for key, value in args.__dict__.items():
@@ -134,27 +137,30 @@ if __name__ == "__main__":
         with open(model_info_path, "rt") as source:
             model_args = json.load(source)
             print("Loaded model info %r\n" % model_args)
-            model_class_name = model_args.pop("class")
-    
-    if args.model:
-        model_class_name = args.model  # overrides choice in file
+            model_class_name = model_args["class"]
 
-    if args.downsampling_factor:
+    if type(args.model) == str and args.model:
+        model_class_name = args.model
+
+    if type(args.downsampling_factor) == int and args.downsampling_factor > 0:
         model_args["downsampling_factor"] = args.downsampling_factor
 
-    if args.keys:
+    if type(args.keys) == list and args.keys:
         model_args["keys"] = args.keys
+
+    def filterargs(function, kwargs):
+        """ Throw away dict elements that don't match function kwargs. """
+        return {k: v for k, v in kwargs.items()
+                if k in signature(function).parameters.keys()}
 
     # create image encoder:
     if model_class_name == "resnet":
         from encoding.image_encoding import ResNet50Encoder
-        model_args = {k: v for k, v in model_args.items() if k in
-                      signature(ResNet50Encoder.__init__).parameters.keys()}
+        model_args = filterargs(ResNet50Encoder.__init__, model_args)
         encoder = ResNet50Encoder(**model_args)
     elif model_class_name == "local" or model_class_name == "OnnxModel":
         from encoding.pretrained import OnnxModel
-        model_args = {k: v for k, v in model_args.items() if k in
-                      signature(OnnxModel.__init__).parameters.keys()}
+        model_args = filterargs(OnnxModel.__init__, model_args)
         encoder = OnnxModel(**model_args)
     else:
         raise ValueError("Unrecognized model option %r" % (args.model,))
