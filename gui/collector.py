@@ -19,18 +19,23 @@ LEFT_COLOR = "orange"
 RIGHT_COLOR = "magenta"
 
 
-class EvidenceBar(Rectangle):
+class ProbabilityBars:
 
-    def __init__(self, axes, maxval=350.0):
-        Rectangle.__init__(self, xy=(0.0, 0.1), width=0, height=0.8)
-        axes.add_patch(self)
-        axes.set_ylim(0, 1)
-        axes.set_yticks([])
-        axes.set_xlim(-maxval, +maxval)
+    def __init__(self, axes, names):
+        self.left_plot, = axes.plot([], [], "-", lw=10, color=LEFT_COLOR)
+        self.right_plot, = axes.plot([], [], "-", lw=10, color=RIGHT_COLOR)
+        self.neither_plot, = axes.plot([], [], "-", lw=10, color="gray")
+        axes.set_xlim(-0.1, 1.1)
+        axes.set_ylim(-0.5, 2.5)
+        axes.set_xticks([0, 0.5, 1], ["0%", "50%", "100%"])
+        left_name, right_name = names
+        axes.set_yticks([2, 1, 0], [left_name, right_name, "NEITHER"])
     
-    def set_value(self, value):
-        self.set_width(value)
-        self.set_color(LEFT_COLOR if value < 0 else RIGHT_COLOR)
+    def set_value(self, logprobs):
+        p_left, p_right, p_neither = np.exp(logprobs)
+        self.left_plot.set_data([0, p_left], [2, 2])
+        self.right_plot.set_data([0, p_right], [1, 1])
+        self.neither_plot.set_data([0, p_neither], [0, 0])
 
 
 
@@ -188,7 +193,7 @@ class DataCollector:
         window = image_axes.imshow(rgb)
 
         bar_axes = plt.subplot2grid((nrows, 2), (nrows - 2, 0), colspan=2)
-        barplot = EvidenceBar(bar_axes, maxval=self.maxval)
+        barplot = ProbabilityBars(bar_axes, self.dataset.class_names.values())
 
         self.left_axes = plt.subplot2grid((nrows, 2), (nrows - 1, 0))
         self.right_axes = plt.subplot2grid((nrows, 2), (nrows - 1, 1))
@@ -221,8 +226,8 @@ class DataCollector:
             window.set_data(frame)
             if nonempty and nshown % 3 == 0:
                 latent = self.dataset.image_encoder(frame)
-                evidence = self.discriminator(latent)
-                barplot.set_value(evidence)
+                logprobs = self.discriminator(latent)
+                barplot.set_value(logprobs)
             del frame
             nshown += 1
             if not plt.fignum_exists(self.figure.number):
@@ -268,7 +273,7 @@ class DataCollector:
             )
 
         bar_axes = plt.subplot2grid((nrows, 2), (nrows - 1, 0))
-        barplot = EvidenceBar(bar_axes, maxval=self.maxval)
+        barplot = ProbabilityBars(bar_axes, self.dataset.class_names.values())
         
         button_axes = plt.subplot2grid((nrows, 2), (nrows - 1, 1))
         self.stop_button = Button(button_axes, "STOP")
@@ -288,8 +293,8 @@ class DataCollector:
 
             if (nframes % self.frames_per_update == 0 and nonempty):
                 all_latents = self.dataset.current_encoding_list
-                evidence = self.discriminator(all_latents[-1])
-                barplot.set_value(evidence)
+                logprobs = self.discriminator(all_latents[-1])
+                barplot.set_value(logprobs)
             
             name = self.dataset.get_current_class_name()            
             header = "Recorded %s examples of class %r" % (nframes, name)
