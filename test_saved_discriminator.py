@@ -5,7 +5,7 @@ from encoding.pretrained import OnnxModel
 from encoding.image_encoding import ResNet50Encoder
 
 from classification.discriminator import BiGaussianDiscriminator
-from gui.collector import EvidenceBar
+from gui.collector import ProbabilityBars
 
 
 if __name__ == "__main__":
@@ -112,7 +112,7 @@ if __name__ == "__main__":
         height_ratios=[9, 1],
         )
 
-    bars = EvidenceBar(bot)
+    bars = ProbabilityBars(bot, names=["CLASS 0", "CLASS 1"])
     tv = top.imshow(image)
     top.axis("off")
     plt.tight_layout()
@@ -120,8 +120,8 @@ if __name__ == "__main__":
         image = camera.read_mirrored_rgb()
         tv.set_data(image)
         code = encoder(image)
-        evidence = discriminator(code)
-        bars.set_value(evidence)
+        logprobs = discriminator(code)
+        bars.set_value(logprobs)
         plt.pause(0.001)
         if not plt.fignum_exists(figure.number):
             break
