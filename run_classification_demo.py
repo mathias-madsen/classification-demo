@@ -20,7 +20,8 @@ if __name__ == "__main__":
         help=(
             "The camera to use as a source for the data collection; "
             "use 0, 1, 2, ... to select a built-in camera and 'ximea' "
-            "to select a Ximea camera.")
+            "to select a Ximea camera."
+            ),
         )
 
     parser.add_argument(
@@ -50,12 +51,14 @@ if __name__ == "__main__":
         type=str,
         nargs="*",
         default=["Eyx1", "Varsyx1", "Covyx1"],
-        help=("A choice of outputs from the local model to include in "
-              "image encoding. The selected outputs are flattened and "
-              "concatenated into a vector which represents the image. "
-              "If no value is provided, we try to fall back on the "
-              "choice in the 'model_info.json' file, and otherwise "
-              "use the default of `['Eyx1', 'Varsyx1', 'Covyx1']`")
+        help=(
+            "A choice of outputs from the local model to include in "
+            "image encoding. The selected outputs are flattened and "
+            "concatenated into a vector which represents the image. "
+            "If no value is provided, we try to fall back on the "
+            "choice in the 'model_info.json' file, and otherwise "
+            "use the default of `['Eyx1', 'Varsyx1', 'Covyx1']`"
+            ),
         )
 
     args, _ = parser.parse_known_args()
