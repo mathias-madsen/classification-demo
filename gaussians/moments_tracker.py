@@ -3,14 +3,14 @@ import numpy as np
 
 def combine(moments_objects):
     """ Create a single MomentsTracker objects by mixing several. """
-    total = sum(m.count for m in moments_objects)
-    mean = np.sum([m.count * m.mean / total for m in moments_objects], axis=0)
-    squared_mean = np.outer(mean, mean)
-    mean_square = np.sum([m.count / total * (m.cov + np.outer(m.mean, m.mean))
-                          for m in moments_objects], axis=0)
-    cov = mean_square - squared_mean
-    count = sum(m.count for m in moments_objects)
-    return MomentsTracker(mean, cov, count)
+    means = np.array([m.mean for m in moments_objects])
+    covs = np.array([m.cov for m in moments_objects])
+    counts = np.array([m.count for m in moments_objects])
+    weights = counts / np.sum(counts)
+    meanmean = np.sum(weights[:, None] * means, axis=0)
+    meancov = np.sum(weights[:, None, None] * covs, axis=0)
+    covmean = np.cov(means.T, aweights=weights, ddof=0)
+    return MomentsTracker(meanmean, meancov + covmean, counts.sum())
 
 
 def mixed_mean(mean, cov, size, mean0, cov0, size0):

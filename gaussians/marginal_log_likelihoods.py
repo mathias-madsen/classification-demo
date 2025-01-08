@@ -60,12 +60,12 @@ def marginal_logp_shared_variance(statsx, statsy, statsx0, statsy0, df0):
     _, covyM, lengthyM = combine_stats(*statsy, *statsy0)
     scatter0 = lengthx0*covx0 + lengthy0*covy0
     scatterNM = lengthxN*covxN + lengthyM*covyM
-    _, logdetscatter0 = np.log(scatter0.diagonal()).sum()
-    _, logdetscatterNM = np.log(scatterNM.diagonal()).sum()
+    logdetscatter0 = np.log(scatter0.diagonal()).sum()
+    logdetscatterNM = np.log(scatterNM.diagonal()).sum()
 
     return (
-        + dim * special.multigammaln(dfNM / 2)
-        - dim * special.multigammaln(df0 / 2)
+        + dim * special.gammaln(dfNM / 2)
+        - dim * special.gammaln(df0 / 2)
         + 0.5 * dim * np.log(lengthx0 / lengthxN)
         + 0.5 * dim * np.log(lengthy0 / lengthyM)
         + 0.5 * df0 * logdetscatter0
@@ -200,7 +200,7 @@ def pick_best_combination(positive_stats, negative_stats, verbose=False):
         1.0,
     )
 
-    sharevar = marginal_logp_separate_variances(
+    sharevar = marginal_logp_shared_variance(
         positive_stats,
         negative_stats,
         prior_stats,
