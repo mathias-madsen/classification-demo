@@ -12,8 +12,8 @@ from gaussians.marginal_log_likelihoods import pick_best_combination
 
 
 
-LEFT = 0
-RIGHT = 1
+LEFT = 1
+RIGHT = 2
 
 LEFT_COLOR = "orange"
 RIGHT_COLOR = "magenta"
@@ -386,27 +386,27 @@ class DataCollector:
         num_steps = self.dataset.compute_num_cross_val_steps()
         load_bar = LoadBar(self.figure, num_steps)
 
-        k0, n0 = 0, 0  # totals for the 'left' class
-        for k, n in self.dataset.crossval_accuracy(0):
-            k0 += k
-            n0 += n
-            load_bar.update()
-
-        if n0 > 0:
-            print("LEFT CROSSVAL ACCURACY: %s/%s = %.1f pct" %
-                  (k0, n0, 100.0 * k0 / n0))
-
-        k1, n1 = 0, 0  # totals for the 'right' class
-        for k, n in self.dataset.crossval_accuracy(1):
+        k1, n1 = 0, 0  # totals for the 'left' class
+        for k, n in self.dataset.crossval_accuracy(LEFT):
             k1 += k
             n1 += n
             load_bar.update()
 
         if n1 > 0:
-            print("RIGHT CROSSVAL ACCURACY: %s/%s = %.1f pct" %
+            print("LEFT CROSSVAL ACCURACY: %s/%s = %.1f pct" %
                   (k1, n1, 100.0 * k1 / n1))
 
-        if n0 > 0 or n1 > 0:
+        k2, n2 = 0, 0  # totals for the 'right' class
+        for k, n in self.dataset.crossval_accuracy(RIGHT):
+            k2 += k
+            n2 += n
+            load_bar.update()
+
+        if n2 > 0:
+            print("RIGHT CROSSVAL ACCURACY: %s/%s = %.1f pct" %
+                  (k2, n2, 100.0 * k2 / n2))
+
+        if n1 > 0 or n2 > 0:
             print("")  # blank line below the printed accuracies
 
         neg = combine(self.dataset.class_episode_stats[LEFT])
@@ -417,12 +417,10 @@ class DataCollector:
         self.discriminator.save(outpath)
 
         # FYI, the training accuracy:
-        for idx in [LEFT, RIGHT]:
-            name = self.dataset.class_names[idx]
+        for idx, name in self.dataset.class_names.items():
             eps_codes = self.dataset.class_episode_codes[idx]
             concat_eps_codes = np.concatenate(eps_codes, axis=0)
-            label = idx + 1  # because 0 is reserved for 'none of the above'
-            corrects = self.discriminator.classify(concat_eps_codes) == label
+            corrects = self.discriminator.classify(concat_eps_codes) == idx
             k = sum(corrects)
             n = len(corrects)
             print("Training accuracy %r: %s/%s = %.1f pct" %
@@ -446,14 +444,14 @@ class DataCollector:
         self.continue_button.on_clicked(self.show_ready_to_record)
         self.continue_button.label.set_fontsize(18)
 
-        # LEFT == 0
+        # LEFT == 1
 
         text_axes.text(x=0, y=4.0, s=self.dataset.class_names[LEFT],
                        color=LEFT_COLOR, fontweight="bold", fontsize=36)
 
-        if n0 > 0:
+        if n1 > 0:
             title = ("Cross-validated accuracy: %s/%s = %.1f pct" %
-                    (k0, n0, 100 * k0 / n0))
+                    (k1, n1, 100 * k1 / n1))
             text_axes.text(x=0, y=3.5, s=title, fontsize=24,
                            fontweight="bold", color=LEFT_COLOR)
         else:
@@ -464,14 +462,14 @@ class DataCollector:
         size_info = "%s episodes (%s frames)" % (left_neps, left_nframes)
         text_axes.text(x=0, y=3.0, s=size_info, fontsize=18)
 
-        # RIGHT == 1
+        # RIGHT == 2
 
         text_axes.text(x=0, y=2.0, s=self.dataset.class_names[RIGHT],
                        color=RIGHT_COLOR, fontweight="bold", fontsize=36)
 
-        if n1 > 0:
+        if n2 > 0:
             title = ("Cross-validated accuracy: %s/%s = %.1f pct" %
-                    (k1, n1, 100 * k1 / n1))
+                    (k2, n2, 100 * k2 / n2))
             text_axes.text(x=0, y=1.5, s=title, fontsize=24,
                            fontweight="bold", color=RIGHT_COLOR)
         else:
