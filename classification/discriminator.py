@@ -22,11 +22,12 @@ class BiGaussianDiscriminator:
         return min(pos_bound, neg_bound)
 
     def __call__(self, x):
+        """ Compute a 3xN stack of probs: neither, negative, positive. """
         pos = self.dist_pos.logpdf(x)
         neg = self.dist_neg.logpdf(x)
         neither_logprob = self.smallest_expected_logprob()
         neither = neither_logprob * np.ones_like(pos)
-        logprobs = np.array([neg, pos, neither])
+        logprobs = np.array([neither, neg, pos])
         logprobs -= np.max(logprobs)
         logsumexp = np.log(np.sum(np.exp(logprobs)))
         return logprobs - logsumexp
