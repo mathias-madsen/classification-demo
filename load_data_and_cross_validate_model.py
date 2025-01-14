@@ -177,8 +177,8 @@ if __name__ == "__main__":
 
     # get or potentially overwrite class names:
     if len(args.names) == 2:
-        dataset.class_names[0] = args.names[0]
-        dataset.class_names[1] = args.names[1]
+        for key, new_value in zip(dataset.class_names.keys(), args.names):
+            dataset.class_names[key] = new_value
     elif args.names:  # not length 0 (and not length 2)
         raise ValueError("Expected either a list of either 0 or 2 "
                          "class names, got %r" % (args.names,))
@@ -227,8 +227,7 @@ if __name__ == "__main__":
     crossval_start = perf_counter()
     total_k = 0
     total_n = 0
-    for class_index in range(2):
-        class_name = dataset.class_names[class_index]
+    for class_index, class_name in dataset.class_names.items():
         print("CROSS-VALIDATING CLASS %r:\n" % class_name)
         sum_k = 0
         sum_n = 0

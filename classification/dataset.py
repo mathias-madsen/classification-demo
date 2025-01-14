@@ -22,14 +22,22 @@ def invent_name():
     return head + "-" + tail
 
 
+class FixedSizeDict(dict):
+
+    def __setitem__(self, key, value):
+        if key not in self:
+            raise ValueError(f"Only keys {self.keys()} allowed, got {key}")
+        return super().__setitem__(key, value)
+
+
 class EncodingData:
     """ An updatable set of examples for two classes, with a fitted model. """
 
     def __init__(self, image_encoder, rootdir):
 
-        self.class_episode_codes = {0: [], 1: []}
-        self.class_episode_stats = {0: [], 1: []}
-        self.class_names = {0: "", 1: ""}
+        self.class_episode_codes = FixedSizeDict({1: [], 2: []})
+        self.class_episode_stats = FixedSizeDict({1: [], 2: []})
+        self.class_names = FixedSizeDict({1: "", 2: ""})
         self.currently_selected_class = None
 
         self.rootdir = rootdir
@@ -198,44 +206,44 @@ class EncodingData:
         capped_lengths = [min(n, MAX_XVAL_STEPS_PER_CLASS) for n in lengths]
         return sum(n_eps if n_eps >= 2 else 0 for n_eps in capped_lengths)
 
-    def crossval_accuracy_0(self):
-        len0, len1 = [len(v) for v in self.class_episode_codes.values()]
-        if len0 < 2 or len1 < 1:
-            return
-        discriminator = BiGaussianDiscriminator()
-        codes_0 = self.class_episode_codes[0]
-        for test_idx in random_splits(len(codes_0), MAX_XVAL_STEPS_PER_CLASS):
-            train_idx = [i for i in range(len(codes_0)) if i not in test_idx]
-            test_codes = np.concatenate([codes_0[i] for i in test_idx], axis=0)
-            stats_0 = self.class_episode_stats[0].copy()
-            stats_0 = [stats_0[i] for i in train_idx]
-            stats_1 = self.class_episode_stats[1]
-            stats = pick_best_combination(combine(stats_0), combine(stats_1))
-            discriminator.set_stats(*stats)
-            corrects = discriminator.classify(test_codes) == 1
-            yield sum(corrects), len(corrects)
-
     def crossval_accuracy_1(self):
         len0, len1 = [len(v) for v in self.class_episode_codes.values()]
-        if len0 < 1 or len1 < 2:
+        if len0 < 2 or len1 < 1:
             return
         discriminator = BiGaussianDiscriminator()
         codes_1 = self.class_episode_codes[1]
         for test_idx in random_splits(len(codes_1), MAX_XVAL_STEPS_PER_CLASS):
             train_idx = [i for i in range(len(codes_1)) if i not in test_idx]
             test_codes = np.concatenate([codes_1[i] for i in test_idx], axis=0)
-            stats_0 = self.class_episode_stats[0]
             stats_1 = self.class_episode_stats[1].copy()
             stats_1 = [stats_1[i] for i in train_idx]
-            stats = pick_best_combination(combine(stats_0), combine(stats_1))
+            stats_2 = self.class_episode_stats[2]
+            stats = pick_best_combination(combine(stats_1), combine(stats_2))
+            discriminator.set_stats(*stats)
+            corrects = discriminator.classify(test_codes) == 1
+            yield sum(corrects), len(corrects)
+
+    def crossval_accuracy_2(self):
+        len0, len1 = [len(v) for v in self.class_episode_codes.values()]
+        if len0 < 1 or len1 < 2:
+            return
+        discriminator = BiGaussianDiscriminator()
+        codes_2 = self.class_episode_codes[2]
+        for test_idx in random_splits(len(codes_2), MAX_XVAL_STEPS_PER_CLASS):
+            train_idx = [i for i in range(len(codes_2)) if i not in test_idx]
+            test_codes = np.concatenate([codes_2[i] for i in test_idx], axis=0)
+            stats_1 = self.class_episode_stats[1]
+            stats_2 = self.class_episode_stats[2].copy()
+            stats_2 = [stats_2[i] for i in train_idx]
+            stats = pick_best_combination(combine(stats_1), combine(stats_2))
             discriminator.set_stats(*stats)
             corrects = discriminator.classify(test_codes) == 2
             yield sum(corrects), len(corrects)
     
     def crossval_accuracy(self, class_index):
-        if class_index == 0:
-            return self.crossval_accuracy_0()
-        elif class_index == 1:
+        if class_index == 1:
             return self.crossval_accuracy_1()
+        elif class_index == 2:
+            return self.crossval_accuracy_2()
         else:
             raise ValueError("Unexpected class index %r" % class_index)

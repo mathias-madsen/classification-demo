@@ -112,7 +112,7 @@ if __name__ == "__main__":
         height_ratios=[9, 1],
         )
 
-    bars = ProbabilityBars(bot, names=["CLASS 0", "CLASS 1"])
+    bars = ProbabilityBars(bot, names=["CLASS 1", "CLASS 2"])
     tv = top.imshow(image)
     top.axis("off")
     plt.tight_layout()
