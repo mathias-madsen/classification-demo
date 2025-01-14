@@ -6,10 +6,9 @@ import cv2 as cv
 from tqdm import tqdm
 import json
 from inspect import signature
+from time import perf_counter
 
-from classification.discriminator import BiGaussianDiscriminator
 from classification.dataset import EncodingData
-from gaussians.moments_tracker import combine
 
 
 def iter_video_relpaths(folder, extension=".avi"):
@@ -207,13 +206,13 @@ if __name__ == "__main__":
         print("%r: %s" % (dataset.class_names[i], count))
     print()
     
-
     # get any image to sniff out the latent dim:
     first_vidpath = next(iter(pathdict.keys()))
     first_image = next(iter_video(first_vidpath, verbose=False))
     dataset.compute_dimensions(first_image)
 
     # load and encode the video files one by one:
+    print("Encoding images . . .")
     for vidpath, index in pathdict.items():
         # class_name = dataset.class_names[index]
         # print("Loading %r (class %r). . ." % (vidpath, class_name))
@@ -225,6 +224,7 @@ if __name__ == "__main__":
 
     # once you've collected all the codes, cross-validate:
 
+    crossval_start = perf_counter()
     total_k = 0
     total_n = 0
     for class_index in range(2):
@@ -234,7 +234,7 @@ if __name__ == "__main__":
         sum_n = 0
         iterator = dataset.crossval_accuracy(class_index)
         for eps, (k, n) in enumerate(iterator):
-            print("Episode %r: %s/%s = %.1f pct" % (eps, k, n, 100.0 * k / n))
+            print("Subset %r: %s/%s = %.1f pct" % (eps, k, n, 100.0 * k / n))
             sum_k += k
             sum_n += n
         print()
@@ -244,3 +244,5 @@ if __name__ == "__main__":
         total_n += sum_n
     print("Grand accuracy for both classes: %s/%s = %.1f pct\n" %
           (total_k, total_n, 100.0 * total_k / total_n))
+    crossval_dur = perf_counter() - crossval_start
+    print("Cross-validation took a total of %.3f seconds.\n" % crossval_dur)

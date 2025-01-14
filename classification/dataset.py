@@ -8,6 +8,10 @@ from gaussians.moments_tracker import MomentsTracker, combine
 from gaussians import marginal_log_likelihoods as likes
 from classification.discriminator import BiGaussianDiscriminator
 from gaussians.marginal_log_likelihoods import pick_best_combination
+from classification.cross_validation import random_splits
+
+
+MAX_XVAL_STEPS_PER_CLASS = 5  # max num validation subsets per class
 
 
 def invent_name():
@@ -183,16 +187,20 @@ class EncodingData:
     
     def num_cross_val_steps(self):
         lengths = [len(v) for v in self.class_episode_stats.values()]
-        return sum(n_eps if n_eps >= 2 else 0 for n_eps in lengths)
+        capped_lengths = [min(n, MAX_XVAL_STEPS_PER_CLASS) for n in lengths]
+        return sum(n_eps if n_eps >= 2 else 0 for n_eps in capped_lengths)
 
     def crossval_accuracy_0(self):
         len0, len1 = [len(v) for v in self.class_episode_codes.values()]
         if len0 < 2 or len1 < 1:
             return
         discriminator = BiGaussianDiscriminator()
-        for eps_idx, test_codes in enumerate(self.class_episode_codes[0]):
+        codes_0 = self.class_episode_codes[0]
+        for test_idx in random_splits(len(codes_0), MAX_XVAL_STEPS_PER_CLASS):
+            train_idx = [i for i in range(len(codes_0)) if i not in test_idx]
+            test_codes = np.concatenate([codes_0[i] for i in test_idx], axis=0)
             stats_0 = self.class_episode_stats[0].copy()
-            stats_0.pop(eps_idx)
+            stats_0 = [stats_0[i] for i in train_idx]
             stats_1 = self.class_episode_stats[1]
             stats = pick_best_combination(combine(stats_0), combine(stats_1))
             discriminator.set_stats(*stats)
@@ -204,10 +212,13 @@ class EncodingData:
         if len0 < 1 or len1 < 2:
             return
         discriminator = BiGaussianDiscriminator()
-        for eps_idx, test_codes in enumerate(self.class_episode_codes[1]):
+        codes_1 = self.class_episode_codes[1]
+        for test_idx in random_splits(len(codes_1), MAX_XVAL_STEPS_PER_CLASS):
+            train_idx = [i for i in range(len(codes_1)) if i not in test_idx]
+            test_codes = np.concatenate([codes_1[i] for i in test_idx], axis=0)
             stats_0 = self.class_episode_stats[0]
             stats_1 = self.class_episode_stats[1].copy()
-            stats_1.pop(eps_idx)
+            stats_1 = [stats_1[i] for i in train_idx]
             stats = pick_best_combination(combine(stats_0), combine(stats_1))
             discriminator.set_stats(*stats)
             corrects = discriminator.evaluate(test_codes, 1)
