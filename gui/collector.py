@@ -421,7 +421,7 @@ class DataCollector:
             name = self.dataset.class_names[idx]
             eps_codes = self.dataset.class_episode_codes[idx]
             concat_eps_codes = np.concatenate(eps_codes, axis=0)
-            corrects = self.discriminator.evaluate(concat_eps_codes, idx)
+            corrects = self.discriminator.classify(concat_eps_codes) == idx
             k = sum(corrects)
             n = len(corrects)
             print("Training accuracy %r: %s/%s = %.1f pct" %

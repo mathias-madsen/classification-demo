@@ -212,7 +212,7 @@ class EncodingData:
             stats_1 = self.class_episode_stats[1]
             stats = pick_best_combination(combine(stats_0), combine(stats_1))
             discriminator.set_stats(*stats)
-            corrects = discriminator.evaluate(test_codes, 0)
+            corrects = discriminator.classify(test_codes) == 0
             yield sum(corrects), len(corrects)
 
     def crossval_accuracy_1(self):
@@ -229,7 +229,7 @@ class EncodingData:
             stats_1 = [stats_1[i] for i in train_idx]
             stats = pick_best_combination(combine(stats_0), combine(stats_1))
             discriminator.set_stats(*stats)
-            corrects = discriminator.evaluate(test_codes, 1)
+            corrects = discriminator.classify(test_codes) == 1
             yield sum(corrects), len(corrects)
     
     def crossval_accuracy(self, class_index):

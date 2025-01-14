@@ -30,13 +30,9 @@ class BiGaussianDiscriminator:
         logprobs -= np.max(logprobs)
         logsumexp = np.log(np.sum(np.exp(logprobs)))
         return logprobs - logsumexp
-    
-    def evaluate(self, test_codes, labels):
-        return np.argmax(self(test_codes), axis=0) == labels
-    
-    def classify(self, vectors):
-        """ Return a class index (0 or 1), or 2 for neither. """
-        return np.argmax(self(vectors), axis=0)
+
+    def classify(self, codes):
+        return np.argmax(self(codes), axis=0)
 
     def save(self, path):
         if self.dist_pos is None or self.dist_neg is None:
