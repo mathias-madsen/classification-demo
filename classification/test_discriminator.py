@@ -44,10 +44,10 @@ def test_that_discriminator_correctly_distinguishes_separable_classes():
     neg_stats = MomentsTracker.fromdata(neg_data)
     discriminator = BiGaussianDiscriminator()
     discriminator.set_stats(neg_stats, pos_stats)
-    true_pos_rate = np.mean(discriminator.classify(pos_data) == 1)
-    assert true_pos_rate > 0.99
-    true_neg_rate = np.mean(discriminator.classify(neg_data) == 0)
+    true_neg_rate = np.mean(discriminator.classify(neg_data) == 1)
     assert true_neg_rate > 0.99
+    true_pos_rate = np.mean(discriminator.classify(pos_data) == 2)
+    assert true_pos_rate > 0.99
 
 
 if __name__ == "__main__":

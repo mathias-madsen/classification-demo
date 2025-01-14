@@ -32,7 +32,7 @@ class ProbabilityBars:
         axes.set_yticks([2, 1, 0], [left_name, right_name, "NEITHER"])
     
     def set_value(self, logprobs):
-        p_left, p_right, p_neither = np.exp(logprobs)
+        p_neither, p_left, p_right = np.exp(logprobs)
         self.left_plot.set_data([0, p_left], [2, 2])
         self.right_plot.set_data([0, p_right], [1, 1])
         self.neither_plot.set_data([0, p_neither], [0, 0])
@@ -421,7 +421,8 @@ class DataCollector:
             name = self.dataset.class_names[idx]
             eps_codes = self.dataset.class_episode_codes[idx]
             concat_eps_codes = np.concatenate(eps_codes, axis=0)
-            corrects = self.discriminator.classify(concat_eps_codes) == idx
+            label = idx + 1  # because 0 is reserved for 'none of the above'
+            corrects = self.discriminator.classify(concat_eps_codes) == label
             k = sum(corrects)
             n = len(corrects)
             print("Training accuracy %r: %s/%s = %.1f pct" %
