@@ -2,6 +2,7 @@ import numpy as np
 from scipy.ndimage import zoom
 from onnxruntime import InferenceSession
 from typing import List, Dict
+from time import perf_counter
 
 
 DEFAULT_KEYS = [
@@ -14,26 +15,23 @@ DEFAULT_KEYS = [
     ]
 
 
-def crop_to_aspect_ratio(
+def center_crop_image(
         image: np.ndarray,
-        width_to_height: float = 320/256,
-        ) -> np.ndarray:
-    height, width, _ = image.shape
-    if width/height > width_to_height:
-        target_width = int(round(height * width_to_height))
-        total_excess = width - target_width
-        left = total_excess // 2
-        right = total_excess - left
-        return image[:, left:width - right, :]
-    elif width/height < width_to_height:
-        target_height = int(round(width / width_to_height))
-        total_excess = height - target_height
-        top = total_excess // 2
-        bottom = total_excess - top
-        return image[top:height - bottom, :, :]
-    else:
-        return image
-    
+        new_height: int = 256,
+        new_width: int = 320,
+        ):
+    old_height, old_width, _  = image.shape
+    # get vertical limits
+    excess_height = old_height - new_height
+    top = excess_height // 2
+    bottom = old_height - excess_height + top
+    # get horizontal limits
+    excess_width = old_width - new_width
+    left = excess_width // 2
+    right = old_width - excess_width + left
+    # crop
+    return image[top:bottom, left:right, :]
+
 
 def zoom_to_size(
         image: np.ndarray,
@@ -41,10 +39,11 @@ def zoom_to_size(
         new_width: int = 320,
         ) -> np.ndarray:
     old_height, old_width, _  = image.shape
-    if not np.isclose(old_width/old_height, new_width/new_height, atol=0.01):
-        raise ValueError("Bad size: %sx%s" % (old_height, old_width))
-    factor = new_height / old_height
-    return zoom(image, [factor, factor, 1.0])
+    factor_height = old_height // new_height
+    factor_width = old_width // new_width
+    factor = min(factor_height, factor_width)
+    small_image = image[::factor, ::factor, :]
+    return center_crop_image(small_image, new_height, new_width)
 
 
 def shorten(name: str) -> str:
@@ -55,8 +54,7 @@ def shorten(name: str) -> str:
 def build_feed(image: np.ndarray) -> Dict[str, np.ndarray]:
     """ Make a stereo input frame out of an image. """
     image = image.astype(np.float32) / 255.
-    cropped = crop_to_aspect_ratio(image)
-    resized = zoom_to_size(cropped)
+    resized = zoom_to_size(image)
     onebatch = resized[None,]
     return {"vision1": onebatch, "vision2": onebatch}
 
@@ -65,8 +63,9 @@ class OnnxModel(InferenceSession):
     
     def __init__(
             self,
-            path: str = "encoding/model.onnx",
-            downsampling_factor: int = 3,
+            # path: str = "encoding/model.onnx",
+            path: str = "encoding/optimized_model.onnx",
+                downsampling_factor: int = 3,
             keys: List[str] = DEFAULT_KEYS,
             ):
         super().__init__(path, providers=['CPUExecutionProvider'])
