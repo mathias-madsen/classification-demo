@@ -44,7 +44,7 @@ def zoom_to_size(
     if not np.isclose(old_width/old_height, new_width/new_height, atol=0.01):
         raise ValueError("Bad size: %sx%s" % (old_height, old_width))
     factor = new_height / old_height
-    return zoom(image, [factor, factor, 1.0])
+    return zoom(image, [factor, factor, 1.0], order=0)
 
 
 def shorten(name: str) -> str:
