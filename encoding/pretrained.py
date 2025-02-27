@@ -161,6 +161,8 @@ if __name__ == "__main__":
 
     from gui.opencv_camera import OpenCVCamera
     from classification.dataset import EncodingData
+    from classification.discriminator import BiGaussianDiscriminator
+    from gaussians.moments_tracker import MomentsTracker, combine
 
     model = OnnxModel(downsampling_factor=5)
     camera = OpenCVCamera(0)
@@ -171,7 +173,7 @@ if __name__ == "__main__":
     
     rgb = camera.read_mirrored_rgb()
     dataset = EncodingData(model, rootdir)
-    dataset.compute_dimensions(rgb)
+    dim = dataset.compute_dimensions(rgb)  # and set tracker
 
     plt.ion()
     figure, axes = plt.subplots(figsize=(4, 3))
@@ -180,16 +182,24 @@ if __name__ == "__main__":
     plt.pause(1e-4)
     plt.show()
 
+    discriminator = BiGaussianDiscriminator()
+
     try:
         for eps_idx in range(6):
+            if eps_idx >= 2:
+                prior = MomentsTracker(np.zeros(dim), np.eye(dim), 10.0)
+                stats1 = combine(dataset.class_episode_stats[1] + [prior])
+                stats2 = combine(dataset.class_episode_stats[1] + [prior])
+                discriminator.set_stats(stats1, stats2)
             print("Episode index:", eps_idx)
             class_number = 1 + (eps_idx % 2)  # classes are called 1 or 2
             dataset.initialize_recording(class_number)
             model.reset_times()
-            for frame_idx in tqdm(range(250), leave=False):
+            for frame_idx in tqdm(range(100), leave=False):
                 rgb = camera.read_mirrored_rgb()
-                dataset.record_frame(rgb)
-                # code = model(rgb)
+                latent = dataset.record_frame(rgb)
+                if eps_idx >= 2:
+                    logprobs = discriminator(latent)
                 plot.set_data(rgb)
                 plt.pause(1e-4)
                 if not plt.fignum_exists(figure.number):

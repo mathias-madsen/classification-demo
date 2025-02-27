@@ -3,6 +3,7 @@ import cv2 as cv
 from datetime import datetime
 import json
 import numpy as np
+from time import perf_counter
 
 from gaussians.moments_tracker import MomentsTracker, combine
 from gaussians import marginal_log_likelihoods as likes
@@ -78,6 +79,8 @@ class EncodingData:
 
         self.current_tracker = MomentsTracker(np.zeros(dim), np.eye(dim), 0)
 
+        return dim
+
     def save_model_information(self):
         jpath = os.path.join(self.rootdir, "model_info.json")
         jdata = {
@@ -97,6 +100,8 @@ class EncodingData:
                 target.write("%s,%s\n" % (k, v))
 
     def initialize_recording(self, class_index):
+
+        self.image_encoder.reset_times()
 
         print("Initializing recording for class %s" % class_index)
         self.currently_selected_class = class_index
@@ -118,16 +123,39 @@ class EncodingData:
             frameSize=(self.image_width, self.image_height),
             )
         
+        self.write_times = []
+        self.encode_times = []
+        self.update_times = []
+        self.append_times = []
+        
     def record_frame(self, rgb):
 
         self.current_image_list.append(rgb)
-        self.video_writer.write(rgb[:, :, ::-1])  # write BGR to .avi
 
+        write_start = perf_counter()
+        self.video_writer.write(rgb[:, :, ::-1])  # write BGR to .avi
+        self.write_times.append(perf_counter() - write_start)
+
+        encode_start = perf_counter()
         latent_vector = self.image_encoder(rgb)
+        self.encode_times.append(perf_counter() - encode_start)
+
+        update_start = perf_counter()
         self.current_tracker.update_with_single(latent_vector)
+        self.update_times.append(perf_counter() - update_start)
+
+        append_start = perf_counter()
         self.current_encoding_list.append(latent_vector)
+        self.append_times.append(perf_counter() - append_start)
+
+        return latent_vector
 
     def save_recording(self):
+
+        print("Per-frame operations of the encoder:")
+        for name, mean, std in self.image_encoder.compute_time_stats():
+            print("%s: %.5f ms ± %.5f ms" % (name, 1000 * mean, 1000 * std))
+        print("")
 
         print("Saving %s frames for class %s" %
               (self.current_tracker.count, self.currently_selected_class))
