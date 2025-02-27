@@ -2,6 +2,15 @@ import numpy as np
 from scipy.ndimage import zoom
 from onnxruntime import InferenceSession
 from typing import List, Dict
+from time import perf_counter
+
+import tempfile
+from functools import lru_cache
+
+
+@lru_cache(maxsize=1)
+def _get_onnx_cache_directory() -> str:
+    return str(tempfile.gettempdir())
 
 
 DEFAULT_KEYS = [
@@ -65,17 +74,50 @@ class OnnxModel(InferenceSession):
     
     def __init__(
             self,
-            path: str = "encoding/model.onnx",
+            path: str = "encoding/optimized_model.onnx",
             downsampling_factor: int = 3,
             keys: List[str] = DEFAULT_KEYS,
             ):
-        super().__init__(path, providers=['CPUExecutionProvider'])
+        # providers=[
+        #     ("OpenVINOExecutionProvider", {"cache_dir": _get_onnx_cache_directory()}),
+        #     ("CUDAExecutionProvider", {}),
+        #     ("CPUExecutionProvider", {}),
+        # ]
+        providers = [
+            'OpenVINOExecutionProvider',
+            'CPUExecutionProvider',
+            ]
+        super().__init__(path, providers=providers)
         self.path = path
         self.keys = keys
         self.output_nodes = self.get_outputs()
         self.full_output_names = [n.name for n in self.output_nodes]
         self.short_output_names = [shorten(n) for n in self.full_output_names]
         self.downsampling_factor = downsampling_factor
+        self.build_times = []
+        self.run_times = []
+        self.squeeze_times = []
+        self.concat_times = []
+        self.downsample_times = []
+    
+    def reset_times(self):
+        self.build_times = []
+        self.run_times = []
+        self.squeeze_times = []
+        self.concat_times = []
+        self.downsample_times = []
+
+    def compute_time_stats(self):
+        nframes = len(self.build_times)
+        assert nframes > 0
+        slists = {
+            "build": self.build_times,
+            "run": self.run_times,
+            "squeeze": self.squeeze_times,
+            "concat": self.concat_times,
+            "downsample": self.downsample_times,
+        }
+        return [(k, np.mean(v), np.std(v)) for k, v in slists.items()]
 
     def __repr__(self) -> str:
         return ("OnnxModel(%r, downsampling_factor=%s, keys=%r)" %
@@ -86,21 +128,79 @@ class OnnxModel(InferenceSession):
         return {k: v[0] for k, v in zip(self.short_output_names, output_list)}
 
     def __call__(self, uint8_rgb_image: np.ndarray) -> np.ndarray:
-        output_dict = self.compute_output_dict(uint8_rgb_image)
+
+        start = perf_counter()
+        feed = build_feed(uint8_rgb_image)
+        self.build_times.append(perf_counter() - start)
+
+        start = perf_counter()
+        output_list = self.run(self.full_output_names, feed)
+        self.run_times.append(perf_counter() - start)
+
+        start = perf_counter()
+        output_dict = {k: v[0] for k, v in zip(self.short_output_names, output_list)}
+        self.squeeze_times.append(perf_counter() - start)
+
+        start = perf_counter()
         all_features = np.concatenate([output_dict[k].flatten() for k in self.keys])
-        return all_features[::self.downsampling_factor]
+        self.concat_times.append(perf_counter() - start)
+
+        start = perf_counter()
+        downsampled_features = all_features[::self.downsampling_factor]
+        self.downsample_times.append(perf_counter() - start)
+
+        return downsampled_features
 
 
 if __name__ == "__main__":
 
-    model = OnnxModel()
+    import os
+    import shutil
+    from matplotlib import pyplot as plt
+    from tqdm import tqdm
+
+    from gui.opencv_camera import OpenCVCamera
+    from classification.dataset import EncodingData
+
+    model = OnnxModel(downsampling_factor=5)
+    camera = OpenCVCamera(0)
+
+    rootdir = "/tmp/delete_me/"
+    if os.path.isdir(rootdir):
+        shutil.rmtree(rootdir)
+    
+    rgb = camera.read_mirrored_rgb()
+    dataset = EncodingData(model, rootdir)
+    dataset.compute_dimensions(rgb)
+
+    plt.ion()
+    figure, axes = plt.subplots(figsize=(8, 5))
+    plot = axes.imshow(rgb)
+    figure.tight_layout()
+    plt.pause(1e-4)
+    plt.show()
 
     try:
-        from scipy.misc import face  # scipy version v1.12 and older
-    except:
-        from scipy.datasets import face  # scipy version v1.10 and newer
+        for eps_idx in range(10):
+            class_number = 1 + (eps_idx % 2)  # classes are called 1 or 2
+            dataset.initialize_recording(class_number)
+            print("Episode index:", eps_idx)
+            model.reset_times()
+            for frame_idx in tqdm(range(100), leave=False):
+                rgb = camera.read_mirrored_rgb()
+                dataset.record_frame(rgb)
+                # code = model(rgb)
+                plot.set_data(rgb)
+                plt.pause(1e-4)
+                if not plt.fignum_exists(figure.number):
+                    break
+            if not plt.fignum_exists(figure.number):
+                break
+            for n, m, s in model.compute_time_stats():
+                print("%s: %.5f ms ± %.5f ms" % (n, 1000.0 * m, 1000.0 * s))
+            print("")
+    except KeyboardInterrupt:
+        pass
 
-    raccoon = face()
-    image = raccoon[:256, :320, :]
-    features = model(image)
-    print(features.shape)  # (5120,)
+    camera.release()
+    shutil.rmtree(rootdir)
