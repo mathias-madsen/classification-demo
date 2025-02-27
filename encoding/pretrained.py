@@ -85,7 +85,7 @@ class OnnxModel(InferenceSession):
         #     ("CPUExecutionProvider", {}),
         # ]
         providers = [
-            'OpenVINOExecutionProvider',
+            # 'OpenVINOExecutionProvider',
             'CPUExecutionProvider',
             ]
         super().__init__(path, providers=providers)
@@ -123,10 +123,6 @@ class OnnxModel(InferenceSession):
     def __repr__(self) -> str:
         return ("OnnxModel(%r, downsampling_factor=%s, keys=%r)" %
                 (self.path, self.downsampling_factor, self.keys))
-
-    def compute_output_dict(self, image: np.ndarray) -> np.ndarray:
-        output_list = self.run(self.full_output_names, build_feed(image))
-        return {k: v[0] for k, v in zip(self.short_output_names, output_list)}
 
     def __call__(self, uint8_rgb_image: np.ndarray) -> np.ndarray:
 
