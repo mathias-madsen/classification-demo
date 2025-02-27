@@ -2,6 +2,9 @@ import numpy as np
 from onnxruntime import InferenceSession
 from time import perf_counter
 from scipy.misc import face
+from tqdm import tqdm
+from matplotlib import pyplot as plt
+
 
 dim = 512
 random_matrix_square_root = np.random.normal(size=(dim, dim))
@@ -9,6 +12,7 @@ random_matrix = random_matrix_square_root.T @ random_matrix_square_root
 
 session = InferenceSession(
     "encoding/optimized_model.onnx",
+    # "encoding/model.onnx",
     providers = ["CPUExecutionProvider"],
     )
 
@@ -21,8 +25,6 @@ image = raccoon.astype(np.float32) / 255.
 image_batch = image[None,]
 
 if __name__ == "__main__":
-
-    from tqdm import tqdm
 
     times = {True: [], False: []}
     alltimes = []
@@ -45,3 +47,9 @@ if __name__ == "__main__":
         mean = np.mean(durlist)
         std = np.std(durlist)
         print("%s: %.1f ± %.1f" % (condition, mean, std))
+
+    plt.figure(figsize=(12, 5))
+    plt.plot(alltimes, ".-")
+    plt.xlabel("frame number")
+    plt.ylabel("duration (ms)")
+    plt.show()
