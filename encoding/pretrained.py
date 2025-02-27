@@ -154,63 +154,62 @@ class OnnxModel(InferenceSession):
 
 if __name__ == "__main__":
 
-    import os
-    import shutil
-    from matplotlib import pyplot as plt
     from tqdm import tqdm
 
     from gui.opencv_camera import OpenCVCamera
-    from classification.dataset import EncodingData
     from classification.discriminator import BiGaussianDiscriminator
-    from gaussians.moments_tracker import MomentsTracker, combine
+    from gaussians.moments_tracker import MomentsTracker
 
-    model = OnnxModel(downsampling_factor=5)
+    # open the camera feed and acquire a test image:
     camera = OpenCVCamera(0)
-
-    rootdir = "/tmp/delete_me/"
-    if os.path.isdir(rootdir):
-        shutil.rmtree(rootdir)
-    
     rgb = camera.read_mirrored_rgb()
-    dataset = EncodingData(model, rootdir)
-    dim = dataset.compute_dimensions(rgb)  # and set tracker
 
-    plt.ion()
-    figure, axes = plt.subplots(figsize=(4, 3))
-    plot = axes.imshow(rgb)
-    figure.tight_layout()
-    plt.pause(1e-4)
-    plt.show()
+    # create a mdoel and find out what it returns:
+    model = OnnxModel(downsampling_factor=5)
+    dim, = model(rgb).shape
 
+    # create a RANDOM discriminator
+    stats1 = MomentsTracker.random(dim)
+    stats2 = MomentsTracker.random(dim)
     discriminator = BiGaussianDiscriminator()
+    discriminator.set_stats(stats1, stats2)
 
     try:
         for eps_idx in range(6):
-            if eps_idx >= 2:
-                prior = MomentsTracker(np.zeros(dim), np.eye(dim), 10.0)
-                stats1 = combine(dataset.class_episode_stats[1] + [prior])
-                stats2 = combine(dataset.class_episode_stats[1] + [prior])
-                discriminator.set_stats(stats1, stats2)
-            print("Episode index:", eps_idx)
-            class_number = 1 + (eps_idx % 2)  # classes are called 1 or 2
-            dataset.initialize_recording(class_number)
-            model.reset_times()
+
+            compute_logprobs_for_this_episode = np.random.choice([True, False])
+            if compute_logprobs_for_this_episode:
+                print("Computing logprobs for this episode")
+            else:
+                print("NOT computing logprobs for this episode")
+
+            image_times = []
+            encode_times = []
+            logprob_times = []
+
             for frame_idx in tqdm(range(100), leave=False):
+
+                start = perf_counter()
                 rgb = camera.read_mirrored_rgb()
-                latent = dataset.record_frame(rgb)
-                if eps_idx >= 2:
+                image_times.append(perf_counter() - start)
+
+                start = perf_counter()
+                latent = model(rgb)
+                encode_times.append(perf_counter() - start)
+
+                start = perf_counter()
+                if compute_logprobs_for_this_episode:
                     logprobs = discriminator(latent)
-                plot.set_data(rgb)
-                plt.pause(1e-4)
-                if not plt.fignum_exists(figure.number):
-                    break
-            if not plt.fignum_exists(figure.number):
-                break
-            for n, m, s in model.compute_time_stats():
-                print("%s: %.5f ms ± %.5f ms" % (n, 1000.0 * m, 1000.0 * s))
+                logprob_times.append(perf_counter() - start)
+
+            it_ms = 1000 * np.array(image_times)
+            et_ms = 1000 * np.array(encode_times)
+            lp_ms = 1000 * np.array(logprob_times)
+            print("Image acquisition: %.1f ms ± %.1f ms" % (np.mean(it_ms), np.std(it_ms)))
+            print("Encoding: %.1f ms ± %.1f ms" % (np.mean(et_ms), np.std(et_ms)))
+            print("Discrimination: %.1f ms ± %.1f ms" % (np.mean(lp_ms), np.std(lp_ms)))
             print("")
     except KeyboardInterrupt:
         pass
 
     camera.release()
-    shutil.rmtree(rootdir)
