@@ -170,7 +170,7 @@ class DataCollector:
     def reset_stopwatch(self):
         self.time_of_last_pause = perf_counter()
     
-    def pause_till_complete(self, fps=10.0):
+    def pause_till_complete(self, fps=100.0):
         seconds_already_taken = perf_counter() - self.time_of_last_pause
         target_duration_in_seconds = 1 / fps
         remaining_seconds = target_duration_in_seconds - seconds_already_taken
