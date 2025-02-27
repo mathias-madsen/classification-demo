@@ -1,7 +1,7 @@
 import numpy as np
 from onnxruntime import InferenceSession
 from time import perf_counter
-
+from scipy.misc import face
 
 dim = 512
 random_matrix_square_root = np.random.normal(size=(dim, dim))
@@ -14,14 +14,15 @@ session = InferenceSession(
 
 output_names = [node.name for node in session.get_outputs()]
 
+raccoon = face()
+assert raccoon.dtype == np.uint8
+raccoon = raccoon[:256, :320, :]
+image = raccoon.astype(np.float32) / 255.
+image_batch = image[None,]
+
 if __name__ == "__main__":
 
     from tqdm import tqdm
-
-    from gui.opencv_camera import OpenCVCamera
-
-    # open the camera feed and acquire a test image:
-    camera = OpenCVCamera(0)
 
     times = {True: [], False: []}
     alltimes = []
@@ -31,12 +32,7 @@ if __name__ == "__main__":
         run_numpy = iteration % 40 < 20
 
         start = perf_counter()
-        rgb = camera.read_mirrored_rgb()
-        image = rgb.astype(np.float32) / 255.
-        feed = {
-            "vision1": image[None, :256, :320, :],
-            "vision2": image[None, :256, :320, :],
-            }
+        feed = {"vision1": image_batch, "vision2": image_batch}
         session.run(output_names, feed)
         dur = 1000 * (perf_counter() - start)
         times[run_numpy].append(dur)
