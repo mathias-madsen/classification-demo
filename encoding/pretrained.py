@@ -174,19 +174,19 @@ if __name__ == "__main__":
     dataset.compute_dimensions(rgb)
 
     plt.ion()
-    figure, axes = plt.subplots(figsize=(8, 5))
+    figure, axes = plt.subplots(figsize=(4, 3))
     plot = axes.imshow(rgb)
     figure.tight_layout()
     plt.pause(1e-4)
     plt.show()
 
     try:
-        for eps_idx in range(10):
+        for eps_idx in range(6):
+            print("Episode index:", eps_idx)
             class_number = 1 + (eps_idx % 2)  # classes are called 1 or 2
             dataset.initialize_recording(class_number)
-            print("Episode index:", eps_idx)
             model.reset_times()
-            for frame_idx in tqdm(range(100), leave=False):
+            for frame_idx in tqdm(range(250), leave=False):
                 rgb = camera.read_mirrored_rgb()
                 dataset.record_frame(rgb)
                 # code = model(rgb)
