@@ -281,23 +281,24 @@ class DataCollector:
         self.stop_button.label.set_fontsize(18)
         self.figure.tight_layout()
 
-        nframes = 0
+        self.nframes = 0
         nonempty = self.dataset.all_classes_nonempty()
         self.reset_stopwatch()
+        self.start_of_last_recording = perf_counter()
         while self.recording_in_progress:
 
             frame = self.camera.read_mirrored_rgb()
             self.dataset.record_frame(frame)
             window.set_data(frame)
-            nframes += 1
+            self.nframes += 1
 
-            if (nframes % self.frames_per_update == 0 and nonempty):
+            if (self.nframes % self.frames_per_update == 0 and nonempty):
                 all_latents = self.dataset.current_encoding_list
                 logprobs = self.discriminator(all_latents[-1])
                 barplot.set_value(logprobs)
             
             name = self.dataset.get_current_class_name()            
-            header = "Recorded %s examples of class %r" % (nframes, name)
+            header = "Recorded %s examples of class %r" % (self.nframes, name)
             title.set_text(header)
             
             self.pause_till_complete()
@@ -307,7 +308,12 @@ class DataCollector:
 
     def stop_recording(self, mouse_event):
 
-        print("Stopped recording.\n")
+        dur = perf_counter() - self.start_of_last_recording
+        ms_per_frame = 1000.0 * dur / self.nframes
+        print("")
+        print("Encoded and recorded %s frames in %.3f seconds, that is, "
+              "%.1f ms per frame.\n" % (self.nframes, dur, ms_per_frame))
+
         self.recording_in_progress = False
         self.stop_button.set_active(False)
         self.show_rate_recording_screen()
@@ -380,6 +386,8 @@ class DataCollector:
 
     def show_fit_results_screen(self):
 
+        start = perf_counter()
+
         self.figure.clf()
         plt.pause(0.001)
 
@@ -430,6 +438,23 @@ class DataCollector:
         # clear the crossval bar and make space for the fit results screen:
         self.figure.clf()
         plt.pause(0.001)
+
+        dur = perf_counter() - start
+        if n1 > 0 or n2 > 0:
+            ms_per_step = 1000.0 * dur / num_steps
+            num_frames = sum(
+                sum(m.count for m in ms) for ms in
+                self.dataset.class_episode_stats.values()
+                )
+            num_eps = sum(
+                len(v) for v in
+                self.dataset.class_episode_codes.values()
+                )
+            print("The %s cross-validation steps took %.3f seconds, that is, "
+                "%.1f ms per validation set." % (num_steps, dur, ms_per_step))
+            print("There is a combined total of %s frames in %s episodes." %
+                  (num_frames, num_eps))
+            print()
 
         left_neps = len(self.dataset.class_episode_stats[LEFT])
         right_neps = len(self.dataset.class_episode_stats[RIGHT])
