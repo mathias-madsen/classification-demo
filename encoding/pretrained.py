@@ -64,8 +64,9 @@ def shorten(name: str) -> str:
 def build_feed(image: np.ndarray) -> Dict[str, np.ndarray]:
     """ Make a stereo input frame out of an image. """
     image = image.astype(np.float32) / 255.
-    cropped = crop_to_aspect_ratio(image)
-    resized = zoom_to_size(cropped)
+    # cropped = crop_to_aspect_ratio(image)
+    # resized = zoom_to_size(cropped)
+    resized = image[:256, :320, :]
     onebatch = resized[None,]
     return {"vision1": onebatch, "vision2": onebatch}
 
@@ -157,8 +158,6 @@ if __name__ == "__main__":
     from tqdm import tqdm
 
     from gui.opencv_camera import OpenCVCamera
-    from classification.discriminator import BiGaussianDiscriminator
-    from gaussians.moments_tracker import MomentsTracker
 
     # open the camera feed and acquire a test image:
     camera = OpenCVCamera(0)
@@ -167,12 +166,8 @@ if __name__ == "__main__":
     # create a mdoel and find out what it returns:
     model = OnnxModel(downsampling_factor=5)
     dim, = model(rgb).shape
-
-    # create a RANDOM discriminator
-    stats1 = MomentsTracker.random(dim)
-    stats2 = MomentsTracker.random(dim)
-    discriminator = BiGaussianDiscriminator()
-    discriminator.set_stats(stats1, stats2)
+    random_matrix_square_root = np.random.normal(size=(dim, dim))
+    random_matrix = random_matrix_square_root.T @ random_matrix_square_root
 
     try:
         for eps_idx in range(6):
@@ -199,7 +194,7 @@ if __name__ == "__main__":
 
                 start = perf_counter()
                 if compute_logprobs_for_this_episode:
-                    logprobs = discriminator(latent)
+                    np.linalg.slogdet(random_matrix)
                 logprob_times.append(perf_counter() - start)
 
             it_ms = 1000 * np.array(image_times)
